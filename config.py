@@ -1,4 +1,5 @@
-"""This is the configuration file for allowing other users to define their own configuration
+"""
+This is the configuration file for allowing other users to define their own configuration
 like data base credentials, database name, data tables name and columns of data tables.
 """
 
