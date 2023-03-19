@@ -37,6 +37,7 @@ class TablesNames:
     """
     users_table: str = "users_information"
     feeds_table: str = "feeds_information"
+    subscriptions_table: str = "subscriptions_information"
 
 DATABASE_TABLES_NAMES = TablesNames()
 
@@ -47,23 +48,21 @@ class UsersDataColumns:
     contains the names of columns in the user data table.
     
     Object Attributes:
-        user_id_column (str): Name of the id column.
-        username_column (str): Name of usernames column.
-        password_column (str): Name of the password hash value column.
-        favorites_column (str): Name of the favorites feeds column.
+        id (str): Name of the id's column.
+        username (str): Name of usernames column.
+        password (str): Name of the password hash values column.
         
     Examples:
         >>> my_user_data_attributes = UsersDataColumns()
-        >>> my_tables.user_id
+        >>> my_tables.id
         id
-        >>> my_user_data_attributes.user_id_column = "id_columns"
-        >>> my_user_data_attributes.user_id_column
+        >>> my_user_data_attributes.id = "id_columns"
+        >>> my_user_data_attributes.id
         id_columns
     """
-    user_id_column: str = "id"
-    username_column: str = "username"
-    password_column: str = "password_hash_value"
-    favorites_column: str = "favorites_feeds"
+    id: str = "id"
+    username: str = "username"
+    password: str = "password_hash_value"
 
 USERS_DATA_COLUMNS = UsersDataColumns()
 
@@ -74,8 +73,9 @@ class FeedsDataColumns:
     contains the names of columns in the feeds data table.
     
     Object Attributes:
-        links_column (str): Name of the links column.
-        rating_column (str): Name of ratings column.
+        id (str): Name of the feeds id column.
+        links (str): Name of the feeds links column.
+        rating (str): Name of ratings column.
         
     Examples:
         >>> my_feeds_data_attributes = FeedsDataColumns()
@@ -85,7 +85,33 @@ class FeedsDataColumns:
         >>> my_feeds_data_attributes.links_column
         link
     """
-    links_columns: str = "url"
-    rating_column: str = "rating"
+    id: str = "id"
+    links: str = "url"
+    rating: str = "rating"
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
+
+@dataclass
+class SubscriptionsDataColumns:
+    """
+    The SubscriptionsDataColumns for SUBSCRIPTIONS_DATA_COLUMNS modifying. 
+    contains the names of the columns in subscriptions data table.  
+    
+    Object Attributes:
+        id (str): Name of the subscriptions id's column.
+        user_id (str): Name of users id's column.
+        feeds_id (str): Name of feeds id's column.
+        
+    Examples:
+        >>> my_subscription_data_attributes = SubscriptionsDataColumns()
+        >>> my_subscription_data_attributes.id
+        id
+        >>> my_subscription_data_attributes.user_id = "id_of_users"
+        >>> my_subscription_data_attributes.user_id
+        id_of_users
+    """
+    id: str = "id"
+    user_id: str = "user_id"
+    feed_id: str = "feed_id"
+
+SUBSCRIPTIONS_DATA_COLUMNS = SubscriptionsDataColumns()
