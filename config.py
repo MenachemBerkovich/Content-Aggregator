@@ -63,6 +63,10 @@ class UsersDataColumns:
     id: str = "id"
     username: str = "username"
     password: str = "password_hash_value"
+    sending_schedule: str = "sending_schedule"
+    sending_time: str = "sending_time"
+    phone_number: str = "phone_number"
+    email: str = "email"
 
 USERS_DATA_COLUMNS = UsersDataColumns()
 
