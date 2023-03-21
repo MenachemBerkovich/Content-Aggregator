@@ -1,5 +1,5 @@
 """
-Context manager implementation to manage the securely data base connection,
+Context manager implementation to manage securely data base connection,
 With automatic closing of the connection once is not needed.   
 """
 
