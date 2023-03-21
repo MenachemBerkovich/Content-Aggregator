@@ -1,11 +1,11 @@
 """
-_summary_
+Context manager implementation to manage the securely data base connection,
+With automatic closing of the connection once is not needed.   
 """
 
 from mysql.connector import Error
 from mysql.connector.connection import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
-
 
 import config
 
