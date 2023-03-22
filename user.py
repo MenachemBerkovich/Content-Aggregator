@@ -168,7 +168,7 @@ class User:
             ValueError: If any of the addresses does not exist, 
                         or if we have only one address right now.
         """
-        if len(self.addresses) == 1:
+        if len(self.addresses) <= 1:
             raise ValueError("You must provide at least one address!")
         if any(address not in self.addresses for address in addresses):
             raise ValueError("One or more addresses does not exist!")
