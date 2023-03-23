@@ -4,6 +4,9 @@ like data base credentials, database name, data tables name and columns of data 
 """
 
 
+from typing import Callable
+
+
 SQL_USERNAME: str | None = None
 
 SQL_HOST: str | None = None
@@ -63,6 +66,7 @@ class UsersDataColumns:
     id: str = "id"
     username: str = "username"
     password: str = "password_hash_value"
+    last_password_change_date: str = "last_password_change_date"
     sending_schedule: str = "sending_schedule"
     sending_time: str = "sending_time"
     phone_number: str = "phone_number"
@@ -119,3 +123,5 @@ class SubscriptionsDataColumns:
     feed_id: str = "feed_id"
 
 SUBSCRIPTIONS_DATA_COLUMNS = SubscriptionsDataColumns()
+
+PASSWORD_ENCODING_METHOD: str | None = "utf-8"
