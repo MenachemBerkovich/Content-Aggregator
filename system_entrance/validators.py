@@ -1,11 +1,11 @@
-#TODO documentation
+# TODO documentation
 
 """"""
 
 import re
 from datetime import datetime, timedelta
 from typing import Tuple, List, Callable
-from collections import namedtuple
+
 
 from bcrypt import checkpw
 
@@ -15,11 +15,7 @@ from user import User
 import exceptions
 
 
-Report = namedtuple("Report", ("boolean_val", "event"))
-
-
-
-#TODO better type hint for variable number of strings in the list
+# TODO better type hint for variable number of strings in the list
 USERNAMES_BLACKLIST: List[str] = [
     "access",
     "account",
@@ -191,7 +187,7 @@ USERNAMES_BLACKLIST: List[str] = [
 PASSWORD_REGEX_SEARCH: str = r"^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%]).+$"
 
 
-def is_valid_username(username: str) -> Report[bool, Exception | None]:
+def check_username_validation(username: str) -> Exception | None:
     """
 
     Args:
@@ -201,10 +197,16 @@ def is_valid_username(username: str) -> Report[bool, Exception | None]:
         Report[bool, Exception | None]: _description_
     """
     is_valid_flag = username.isalnum() and 6 <= len(username) <= 8
-    return Report(is_valid_flag, exceptions.InvalidUserName if is_valid_flag else None)
+    return (
+        exceptions.InvalidUserName(
+            "A username should be 6-8 letters long, and include only alpha-numeric characters"
+        )
+        if is_valid_flag
+        else None
+    )
 
 
-def is_bad_username(username: str) -> Report[bool, Exception | None]:
+def check_username_quality(username: str) -> Exception | None:
     """_summary_
 
     Args:
@@ -214,12 +216,16 @@ def is_bad_username(username: str) -> Report[bool, Exception | None]:
         Report[bool, Exception | None]: _description_
     """
     is_bad_flag = username in USERNAMES_BLACKLIST
-    return Report(is_bad_flag, exceptions.BadUserName if is_bad_flag else None)
+    return (
+        exceptions.BadUserName(
+            "Be careful! The chosen username is a good candidate for guessing. choose another."
+        )
+        if is_bad_flag
+        else None
+    )
 
 
-def is_exists_username(
-    username: str, required_val: bool
-) -> Report[bool, Exception | None]:
+def check_username_existence(username: str, required_val: bool) -> Exception | None:
     """ """
     with MySQLCursorCM() as cursor:
         cursor.execute(
@@ -230,17 +236,18 @@ def is_exists_username(
                        """
         )
         is_exist_flag = cursor.rowcount
-    return Report(
-        is_exist_flag,
-        exceptions.UserNameAlreadyExists
+    return (
+        exceptions.UserNameAlreadyExists(
+            "Sorry, this username is already taken. Please choose another name."
+        )
         if is_exist_flag and not required_val
-        else exceptions.UserNotFound
+        else exceptions.UserNotFound("Username does not exist.")
         if not is_exist_flag and required_val
-        else None,
+        else None
     )
 
 
-def is_valid_password(password: str) -> Report[bool, Exception | None]:
+def check_password_validation(password: str) -> Exception | None:
     """_summary_
 
     Args:
@@ -252,7 +259,14 @@ def is_valid_password(password: str) -> Report[bool, Exception | None]:
     is_valid_flag = (
         re.match(PASSWORD_REGEX_SEARCH, password) and 8 <= len(password) <= 10
     )
-    return Report(is_valid_flag, None if is_valid_flag else exceptions.InvalidPassword)
+    return (
+        None
+        if is_valid_flag
+        else exceptions.InvalidPassword(
+            """A password should be 8-10 letters long, and include at least one uppercase letter, one lowercase letter,
+    a special character from the following [!@#$%]"""
+        )
+    )
 
 
 def has_been_a_year(last_password_change_date: str) -> bool:
@@ -265,16 +279,17 @@ def has_been_a_year(last_password_change_date: str) -> bool:
         bool: _description_
     """
     last_modified = datetime.strptime(last_password_change_date, "%Y-%m-%d %H:%M:%S")
-    return datetime.now() - last_modified >= datetime.timedelta(days=365)
+    return datetime.now() - last_modified >= timedelta(days=365)
 
 
-def is_match(username: str, password: str) -> Report[bool, Exception | str]:
+def is_match(username: str, password: str) -> Exception | str:
+    """ """
     with MySQLCursorCM() as cursor:
         cursor.execute(
             f"""
                        SELECT {config.USERS_DATA_COLUMNS.password},
                        {config.USERS_DATA_COLUMNS.last_password_change_date},
-                        {config.USERS_DATA_COLUMNS.id}
+                       {config.USERS_DATA_COLUMNS.id}
                        FROM {config.DATABASE_TABLES_NAMES.users_table}
                        WHERE {config.USERS_DATA_COLUMNS.username} = {username}
                        """
@@ -283,20 +298,19 @@ def is_match(username: str, password: str) -> Report[bool, Exception | str]:
         is_match_flag = checkpw(
             password.encode(config.PASSWORD_ENCODING_METHOD), result[0]
         )
-    return Report(
-        is_match_flag,
-        exceptions.PasswordNotUpdated
+    return (
+        exceptions.PasswordNotUpdated("A new password must be chosen", User(result[2]))
         if is_match_flag and has_been_a_year(result[1])
-        else None
+        else result[2]
         if is_match_flag
-        else exceptions.IncorrectPassword,
+        else exceptions.IncorrectPassword("The password is incorrect. Try again."),
     )
 
 
-USERNAME_VALIDATORS: Tuple[Callable[[str], Report], ...] = (
-    is_valid_username,
-    is_bad_username,
-    is_exists_username,
+USERNAME_CHECKERS: Tuple[Callable[[str, str], Exception]] = (
+    check_username_validation,
+    check_username_quality,
+    check_username_existence,
 )
 
-PASSWORD_VALIDATORS: Tuple[Callable[[str], Report], ...] = (is_valid_password,)
+PASSWORD_CHECKERS: Tuple[Callable[[str], Exception]] = (check_password_validation,)
