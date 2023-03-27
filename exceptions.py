@@ -1,4 +1,6 @@
-#TODO module documentation
+"""System-specific exceptions
+"""
+
 
 from user import User
 
