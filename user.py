@@ -133,7 +133,9 @@ class User:
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
-                SELECT {config.USERS_DATA_COLUMNS.phone_number}, {config.USERS_DATA_COLUMNS.email} 
+                SELECT {config.USERS_DATA_COLUMNS.phone_number},
+                       {config.USERS_DATA_COLUMNS.whatsapp_number},
+                       {config.USERS_DATA_COLUMNS.email}
                 FROM {config.DATABASE_TABLES_NAMES.users_table}
                 WHERE {config.DATABASE_TABLES_NAMES.users_table}.{config.USERS_DATA_COLUMNS.id}
                         = {self.id}

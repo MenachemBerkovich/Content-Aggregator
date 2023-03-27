@@ -251,17 +251,17 @@ def check_username_existence(
             f"""
                        SELECT {config.USERS_DATA_COLUMNS.username}
                        FROM {config.DATABASE_TABLES_NAMES.users_table}
-                       WHERE {config.USERS_DATA_COLUMNS.username} = {username}
+                       WHERE {config.USERS_DATA_COLUMNS.username} = '{username}'
                        """
         )
-        is_exist_flag = cursor.rowcount
+        rows_num = cursor.rowcount
     return (
         exceptions.UserNameAlreadyExists(
             "Sorry, this username is already taken. Please choose another name."
         )
-        if is_exist_flag and not required_val
+        if rows_num > 0 and not required_val
         else exceptions.UserNotFound("Username does not exist.")
-        if not is_exist_flag and required_val
+        if rows_num < 1 and required_val
         else None
     )
 
@@ -327,10 +327,10 @@ def check_credentials_compatibility(
                        {config.USERS_DATA_COLUMNS.last_password_change_date},
                        {config.USERS_DATA_COLUMNS.id}
                        FROM {config.DATABASE_TABLES_NAMES.users_table}
-                       WHERE {config.USERS_DATA_COLUMNS.username} = {username}
+                       WHERE {config.USERS_DATA_COLUMNS.username} = '{username}'
                        """
         )
-        result = cursor.fetch_one()
+        result = cursor.fetchone()
         is_match_flag = checkpw(
             password.encode(config.PASSWORD_ENCODING_METHOD), result[0]
         )

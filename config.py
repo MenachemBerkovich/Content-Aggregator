@@ -38,9 +38,9 @@ class TablesNames:
         >>> my_tables.feeds_table
         resources_links
     """
-    users_table: str = "users_information"
-    feeds_table: str = "feeds_information"
-    subscriptions_table: str = "subscriptions_information"
+    users_table: str = "users_info"
+    feeds_table: str = "feeds_info"
+    subscriptions_table: str = "subscriptions_info"
 
 DATABASE_TABLES_NAMES = TablesNames()
 
@@ -65,10 +65,11 @@ class UsersDataColumns:
     """
     id: str = "id"
     username: str = "username"
-    password: str = "password_hash_value"
+    password: str = "password"
     last_password_change_date: str = "last_password_change_date"
     sending_schedule: str = "sending_schedule"
     sending_time: str = "sending_time"
+    whatsapp_number: str = "whatsapp_number"
     phone_number: str = "phone_number"
     email: str = "email"
 
