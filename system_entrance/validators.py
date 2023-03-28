@@ -251,17 +251,18 @@ def check_username_existence(
             f"""
                        SELECT {config.USERS_DATA_COLUMNS.username}
                        FROM {config.DATABASE_TABLES_NAMES.users_table}
-                       WHERE {config.USERS_DATA_COLUMNS.username} = '{username}'
-                       """
+                       WHERE {config.USERS_DATA_COLUMNS.username} = %s
+                       """,
+            (username,),
         )
-        rows_num = cursor.rowcount
+        results = cursor.fetchone()
     return (
         exceptions.UserNameAlreadyExists(
             "Sorry, this username is already taken. Please choose another name."
         )
-        if rows_num > 0 and not required_val
+        if results and not required_val
         else exceptions.UserNotFound("Username does not exist.")
-        if rows_num < 1 and required_val
+        if not results and required_val
         else None
     )
 
@@ -301,13 +302,13 @@ def has_been_a_year(last_password_change_date: str) -> bool:
     Returns:
         bool: True if a year has passed, False otherwise.
     """
-    last_modified = datetime.strptime(last_password_change_date, "%Y-%m-%d %H:%M:%S")
-    return datetime.now() - last_modified >= timedelta(days=365)
+    last_modified = datetime.strptime(last_password_change_date, "%Y-%m-%d").date()
+    return datetime.now().date() - last_modified >= timedelta(days=365)
 
 
 def check_credentials_compatibility(
     username: str, password: str
-) -> exceptions.IncorrectPassword | exceptions.PasswordNotUpdated | str:
+) -> exceptions.IncorrectPassword | exceptions.PasswordNotUpdated | int:
     """Checks if the entered password matches the given username, by database query.
 
     Args:
@@ -315,10 +316,10 @@ def check_credentials_compatibility(
         password (str): The password to check against the username.
 
     Returns:
-        IncorrectPassword | PasswordNotUpdated | str: 
+        IncorrectPassword | PasswordNotUpdated | int:
             IncorrectPassword if password does not match the username.
             PasswordNotUpdated if password match to the username, but it should be updated.
-            otherwise str - the User id for this account.
+            otherwise int - the User id for this account.
     """
     with MySQLCursorCM() as cursor:
         cursor.execute(
@@ -332,7 +333,8 @@ def check_credentials_compatibility(
         )
         result = cursor.fetchone()
         is_match_flag = checkpw(
-            password.encode(config.PASSWORD_ENCODING_METHOD), result[0]
+            password.encode(config.PASSWORD_ENCODING_METHOD),
+            result[0].encode(config.PASSWORD_ENCODING_METHOD),
         )
     return (
         exceptions.PasswordNotUpdated("A new password must be chosen", User(result[2]))
@@ -341,6 +343,7 @@ def check_credentials_compatibility(
         if is_match_flag
         else exceptions.IncorrectPassword("The password is incorrect. Try again."),
     )
+
 
 # A tuple of a function objects used for username initial validation.
 PRELIMINARY_USERNAME_CHECKERS: Tuple[Callable[[str, str], Exception]] = (

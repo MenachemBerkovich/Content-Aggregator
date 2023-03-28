@@ -16,7 +16,7 @@ from user_properties.time import Time
 class User:
     """Represents a user in the system"""
 
-    def __init__(self, user_id: str) -> None:
+    def __init__(self, user_id: int) -> None:
         self.id = user_id
 
     def __repr__(self):
@@ -36,7 +36,7 @@ class User:
     def feeds(self) -> Tuple[Feed, ...]:
         """Feeds property getter.
         Gets all feeds where this user is subscribed to.
-        
+
         Returns:
             Tuple[Feed, ...]: A tuple of Feed objects.
         """
@@ -54,9 +54,9 @@ class User:
     def feeds(self, *new_feeds: Tuple[Feed, ...]) -> None:
         """Feeds property getter.
         Resets the feed subscriptions of the user.
-        
+
         Args:
-            new_feeds (Tuple[Feed, ...]): The new feeds tuple for user subscription modifying. 
+            new_feeds (Tuple[Feed, ...]): The new feeds tuple for user subscription modifying.
         """
         del self.feeds
         self.add_feeds(new_feeds)
@@ -69,7 +69,7 @@ class User:
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
-                DELETE * FROM {config.DATABASE_TABLES_NAMES.subscriptions_table} 
+                DELETE FROM {config.DATABASE_TABLES_NAMES.subscriptions_table} 
                 WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
                 """
             )
@@ -79,7 +79,7 @@ class User:
 
         Args:
             feeds (Tuple[Feed, ...]): The feeds to subscribe to.
-            
+
         Raises:
             ValueError: If One or more of new_feeds already exists.
         """
@@ -98,14 +98,14 @@ class User:
 
     def delete_feeds(self, *feeds: Tuple[Feed, ...]) -> None:
         """Deletes some feeds from the user subscriptions.
-        
+
         Args:
             feeds (Tuple[Feed, ...]) : A tuple of feeds to be deleted.
         """
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
-                DELETE * FROM {config.DATABASE_TABLES_NAMES.subscriptions_table}
+                DELETE FROM {config.DATABASE_TABLES_NAMES.subscriptions_table}
                 WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
                 AND {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id} IN ({','.join(str(feed.id) for feed in feeds)})
                 """
@@ -116,19 +116,20 @@ class User:
 
         Args:
             feeds (Tuple[Feed, ...]): A tuple of feeds to check for subscriptions.
-        
+
         Returns:
             bool: True if user is subscribed to all the given feeds, False otherwise.
         """
         return all(feed in self.feeds for feed in feeds)
 
     @property
-    def addresses(self) -> Tuple[Address, ...]:
+    def addresses(self) -> Tuple[Address, ...] | None:
         """Address property getter.
         Gets the existing addresses for this user.
-        
+
         Returns:
-            Tuple[Address, ...]: A tuple of Address objects, where this user is connected.
+            Tuple[Address, ...] | None: A tuple of Address objects, where this user is connected,
+                                        if exist one at least. otherwise returns None.
         """
         with MySQLCursorCM() as cursor:
             cursor.execute(
@@ -137,17 +138,19 @@ class User:
                        {config.USERS_DATA_COLUMNS.whatsapp_number},
                        {config.USERS_DATA_COLUMNS.email}
                 FROM {config.DATABASE_TABLES_NAMES.users_table}
-                WHERE {config.DATABASE_TABLES_NAMES.users_table}.{config.USERS_DATA_COLUMNS.id}
-                        = {self.id}
+                WHERE {config.USERS_DATA_COLUMNS.id} = '{self.id}'
                 """
             )
-            return tuple(
-                AddressFactory.create(address) for address in cursor.fetch_one()
+            addresses = cursor.fetchone()
+            return (
+                tuple(AddressFactory.create(address) for address in addrs)
+                if addresses
+                else None
             )
 
     def add_addresses(self, *new_addresses: Tuple[Address, ...]) -> None:
         """Adds a new address for this user.
-        
+
         Args:
             new_addresses (Tuple[Address, ...]): A tuple of Address objects to add to this user.
         """
@@ -162,12 +165,12 @@ class User:
 
     def delete_addresses(self, *addresses: Tuple[Address, ...]) -> None:
         """Deletes all addresses from the database.
-        
+
         Args:
             addresses (Tuple[Address, ...]): A tuple of address objects that candidate to deletion.
-        
+
         Raises:
-            ValueError: If any of the addresses does not exist, 
+            ValueError: If any of the addresses does not exist,
                         or if we have only one address right now.
         """
         if len(self.addresses) <= 1:
@@ -188,7 +191,7 @@ class User:
 
         Args:
             addresses (Tuple[Address, ...]): A tuple of address objects to check if the user is registered in.
-        
+
         Returns:
             bool: True if the user is registered at the given addresses, False otherwise.
         """
@@ -198,7 +201,7 @@ class User:
     def username(self) -> UserName:
         """UserName property getter.
         Gets the username of this user.
-        
+
         Returns:
             UserName: UserName object of this user.
         """
@@ -210,13 +213,13 @@ class User:
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            return UserName(cursor.fetch_one()[0])
+            return UserName(cursor.fetchone()[0])
 
     @username.setter
     def username(self, new_username: UserName) -> None:
         """UserName property setter.
         Sets the UserName of this user.
-        
+
         Args:
             new_username (UserName): the new UserName for this user.
         """
@@ -233,7 +236,7 @@ class User:
     def password(self) -> Password:
         """Password property getter.
         Gets the password object of this user.
-        
+
         Returns:
             Password: The password of this user.
         """
@@ -245,15 +248,15 @@ class User:
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            if not cursor.fetch_one():
+            if not cursor.fetchone():
                 raise ValueError("Password does not exist yet")
-            return Password(cursor.fetch_one()[0])
+            return Password(cursor.fetchone()[0])
 
     @password.setter
     def password(self, new_password: Password) -> None:
         """Password property setter.
         Sets the password of this user.
-        
+
         Args:
             new_password (Password): The new password for this user.
         """
@@ -270,7 +273,7 @@ class User:
     def sending_time(self) -> Time:
         """sending_time property getter.
         Gets the Time object of this user.
-        
+
         Returns:
             Time: The Time object of this user (including it's sending time and sending schedule).
         """
@@ -282,13 +285,13 @@ class User:
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            return Time(cursor.fetch_one()[0], cursor.fetch_one()[1])
+            return Time(cursor.fetchone()[0], cursor.fetchone()[1])
 
     @sending_time.setter
     def sending_time(self, time: Time) -> None:
         """sending_time property setter.
         Sets the Time object of this user.
-        
+
         Args:
             Time: The time to send the messages to this user.
         """
@@ -302,14 +305,13 @@ class User:
                 """
             )
 
-    def __del__(self) -> None:
-        """Deletes this user from the database /& system.
-        """
+    def delete(self) -> None:
+        """Deletes this user from the database /& system."""
         del self.feeds
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
-                DELETE * FROM {config.DATABASE_TABLES_NAMES.users_table}
+                DELETE FROM {config.DATABASE_TABLES_NAMES.users_table}
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )

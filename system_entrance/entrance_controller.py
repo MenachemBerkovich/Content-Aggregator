@@ -1,10 +1,10 @@
-# TODO seperate the tests who is not needs a database connection from those tests that are needs it.
-
-
 """Users entrance control - Enables to initialize a user sessions,
 by login method or signup method. Including username and password verification.
 """
 from typing import Tuple, List
+from datetime import datetime
+
+import bcrypt
 
 from system_entrance.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
@@ -49,7 +49,7 @@ def __get_credentials_validation_report(
 
 def __get_credentials_compatibility_report(
     username: str, password: str, required_val: bool
-) -> Exception | str:
+) -> Exception | int:
     """Creates a list of the credentials verifiers results on the given username and password.
     It is generated using the sql queries.
     It is designed and should be called,
@@ -62,8 +62,8 @@ def __get_credentials_compatibility_report(
                              True [in login session] or False [in signup session].
 
     Returns:
-        Exception | str: Exception if something occurred.
-                         else str - The row id of the requested account.
+        Exception | int: Exception if something occurred.
+                         else int - The row id of the requested account.
     """
     username_existence_exc = check_username_existence(username, required_val)
     verify_compatibility_exc = (
@@ -88,12 +88,12 @@ def save_new_user(username: str, password: str) -> str:
         cursor.execute(
             f"""
                        INSERT INTO {config.DATABASE_TABLES_NAMES.users_table}
-                       ({config.USERS_DATA_COLUMNS.username}, {config.USERS_DATA_COLUMNS.password})
-                       VALUES (%s, %s)
+                       ({config.USERS_DATA_COLUMNS.username}, {config.USERS_DATA_COLUMNS.password}, {config.USERS_DATA_COLUMNS.last_password_change_date})
+                       VALUES (%s, %s, %s)
                        """,
-            (username, password),
+            (username, bcrypt.hashpw(password.encode(config.PASSWORD_ENCODING_METHOD), bcrypt.gensalt()), datetime.now().date()),
         )
-        return cursor.lastrowid()
+        return cursor.lastrowid
 
 
 def log_in(username: str, password: str) -> User:
@@ -140,7 +140,7 @@ def sign_up(username: str, password: str) -> User:
         password (str): The new password to register for this new username.
 
     Raises:
-        __set_critical: Appropriate exception in case an error occurs
+        event: Appropriate exception in case an error occurs
                         during the registration process.
 
     Helper functions:
@@ -150,24 +150,14 @@ def sign_up(username: str, password: str) -> User:
         User: A User instance for the new user.
     """
     validation_list = __get_credentials_validation_report(username, password)
-    event = __set_critical(
-        tuple(filter(lambda event: isinstance(event, Exception), validation_list))
+    event = (
+        __set_critical(
+            tuple(filter(lambda event: isinstance(event, Exception), validation_list))
+        )
         if any(validation_list)
         else check_username_existence(username, False)
     )
+
     if event:
         raise event
-    return save_new_user(username, password)
-    # is_taken_username = None
-    # if not any(validation_list):
-    #     is_taken_username = check_username_existence(username, False)
-    # if any(validation_list + [is_taken_username]):
-    #     raise __set_critical(
-    #         tuple(
-    #             filter(
-    #                 lambda event: isinstance(event, Exception),
-    #                 validation_list + [is_taken_username],
-    #             )
-    #         )
-    #     )
-    # return User(save_new_user(username, password))
+    return User(save_new_user(username, password))

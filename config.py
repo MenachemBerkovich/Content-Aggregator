@@ -3,10 +3,6 @@ This is the configuration file for allowing other users to define their own conf
 like data base credentials, database name, data tables name and columns of data tables.
 """
 
-
-from typing import Callable
-
-
 SQL_USERNAME: str | None = None
 
 SQL_HOST: str | None = None
@@ -95,7 +91,7 @@ class FeedsDataColumns:
         link
     """
     id: str = "id"
-    links: str = "url"
+    link: str = "url"
     rating: str = "rating"
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
