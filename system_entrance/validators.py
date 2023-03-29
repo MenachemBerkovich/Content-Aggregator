@@ -341,7 +341,7 @@ def check_credentials_compatibility(
         if is_match_flag and has_been_a_year(result[1])
         else result[2]
         if is_match_flag
-        else exceptions.IncorrectPassword("The password is incorrect. Try again."),
+        else exceptions.IncorrectPassword("The password is incorrect. Try again.")
     )
 
 

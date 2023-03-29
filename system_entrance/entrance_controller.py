@@ -74,7 +74,7 @@ def __get_credentials_compatibility_report(
     return username_existence_exc or verify_compatibility_exc
 
 
-def save_new_user(username: str, password: str) -> str:
+def save_new_user(username: str, password: str) -> int:
     """Saves a new user to the database.
 
     Args:
@@ -82,7 +82,7 @@ def save_new_user(username: str, password: str) -> str:
         password (str): The password to save for the new user.
 
     Returns:
-        str: The new user row id.
+        int: The new user row id.
     """
     with MySQLCursorCM() as cursor:
         cursor.execute(

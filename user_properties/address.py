@@ -9,6 +9,10 @@ class WhatsAppAddress(Address):
     def __init__(self, phone_number: str):
         super().__init__(phone_number)
 
+class PhoneAddress(Address):
+    def __init__(self, phone_number: str):
+        super().__init__(phone_number)
+
 class EmailAddress(Address):
     def __init__(self, email: str):
         super().__init__(email)

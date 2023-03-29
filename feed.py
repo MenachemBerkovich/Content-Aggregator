@@ -1,5 +1,5 @@
 class Feed:
-    def __init__(self, id: str) -> None:
+    def __init__(self, id: int) -> None:
         self.id = id
 
 class RSSFeed(Feed):

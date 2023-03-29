@@ -45,27 +45,33 @@ class User:
                 f"""
                 SELECT {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id}
                 FROM {config.DATABASE_TABLES_NAMES.subscriptions_table}
-                WHERE {config.DATABASE_TABLES_NAMES.subscriptions_table}.{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
+                WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
                 """
             )
-            return tuple(Feed(feed[0]) for feed in cursor.fetch_all())
+            return tuple(Feed(feed[0]) for feed in cursor.fetchall())
 
     @feeds.setter
     def feeds(self, *new_feeds: Tuple[Feed, ...]) -> None:
-        """Feeds property getter.
+        """Feeds property setter.
         Resets the feed subscriptions of the user.
 
         Args:
             new_feeds (Tuple[Feed, ...]): The new feeds tuple for user subscription modifying.
         """
-        del self.feeds
+        if self.feeds:
+            del self.feeds
         self.add_feeds(new_feeds)
 
     @feeds.deleter
     def feeds(self) -> None:
         """Feeds property deleter.
         Deletes all feeds from the subscriptions of the user.
+        
+        Raises:
+            ValueError: If user's feeds not defined.
         """
+        if not self.feeds:
+            raise ValueError("No user's feeds")
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
@@ -101,7 +107,12 @@ class User:
 
         Args:
             feeds (Tuple[Feed, ...]) : A tuple of feeds to be deleted.
+            
+        Raises:
+            ValueError: 
         """
+        if any(feed not in self.feeds for feed in feeds):
+            raise ValueError("One or more feeds does not exist!")
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
@@ -143,7 +154,7 @@ class User:
             )
             addresses = cursor.fetchone()
             return (
-                tuple(AddressFactory.create(address) for address in addrs)
+                tuple(AddressFactory.create(address) for address in addresses)
                 if addresses
                 else None
             )
@@ -158,8 +169,9 @@ class User:
             for address in new_addresses:
                 cursor.execute(
                     f"""
-                    INSERT INTO {config.DATABASE_TABLES_NAMES.subscriptions_table} ({AddressFactory.match_db_index(address)})
+                    INSERT INTO {config.DATABASE_TABLES_NAMES.users_table} ({AddressFactory.match_db_index(address)})
                     VALUES ({address})
+                    WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                     """
                 )
 
@@ -173,15 +185,14 @@ class User:
             ValueError: If any of the addresses does not exist,
                         or if we have only one address right now.
         """
-        if len(self.addresses) <= 1:
-            raise ValueError("You must provide at least one address!")
         if any(address not in self.addresses for address in addresses):
             raise ValueError("One or more addresses does not exist!")
         with MySQLCursorCM() as cursor:
             for address in addresses:
                 cursor.execute(
                     f"""
-                    DELETE {AddressFactory.match_db_index(address.address)} FROM {config.DATABASE_TABLES_NAMES.users_table}
+                    DELETE {AddressFactory.match_db_index(address.address)}
+                    FROM {config.DATABASE_TABLES_NAMES.users_table}
                     WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                     """
                 )
@@ -248,9 +259,9 @@ class User:
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            if not cursor.fetchone():
-                raise ValueError("Password does not exist yet")
-            return Password(cursor.fetchone()[0])
+            if password := cursor.fetchone():
+                return Password(password[0])
+            raise ValueError("Password does not exist yet")
 
     @password.setter
     def password(self, new_password: Password) -> None:
@@ -280,12 +291,16 @@ class User:
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
-                SELECT {config.USERS_DATA_COLUMNS.sending_time}, {config.USERS_DATA_COLUMNS.sending_schedule}
+                SELECT {config.USERS_DATA_COLUMNS.sending_time},
+                {config.USERS_DATA_COLUMNS.sending_schedule}
                 FROM {config.DATABASE_TABLES_NAMES.users_table}
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            return Time(cursor.fetchone()[0], cursor.fetchone()[1])
+            if all(result := cursor.fetchone()):
+                return Time(*result)
+            raise ValueError("""Could not find any timing settings.
+                                You must define sending preferences""")
 
     @sending_time.setter
     def sending_time(self, time: Time) -> None:
@@ -307,7 +322,8 @@ class User:
 
     def delete(self) -> None:
         """Deletes this user from the database /& system."""
-        del self.feeds
+        if self.feeds:
+            del self.feeds
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
