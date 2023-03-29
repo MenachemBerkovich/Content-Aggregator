@@ -169,7 +169,8 @@ class User:
             for address in new_addresses:
                 cursor.execute(
                     f"""
-                    INSERT INTO {config.DATABASE_TABLES_NAMES.users_table} ({AddressFactory.match_db_index(address)})
+                    INSERT INTO {config.DATABASE_TABLES_NAMES.users_table} 
+                        ({address.db_index(address)})
                     VALUES ({address})
                     WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                     """
@@ -191,7 +192,7 @@ class User:
             for address in addresses:
                 cursor.execute(
                     f"""
-                    DELETE {AddressFactory.match_db_index(address.address)}
+                    DELETE {address.db_index(address.address)}
                     FROM {config.DATABASE_TABLES_NAMES.users_table}
                     WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                     """
