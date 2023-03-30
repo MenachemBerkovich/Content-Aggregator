@@ -154,7 +154,7 @@ class User:
             )
             addresses = cursor.fetchone()
             return (
-                tuple(AddressFactory.create(address) for address in addresses)
+                tuple(AddressFactory.create(address) for address in addresses if address)
                 if addresses
                 else None
             )
