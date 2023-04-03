@@ -88,7 +88,8 @@ def save_new_user(username: str, password: str) -> int:
         cursor.execute(
             f"""
                        INSERT INTO {config.DATABASE_TABLES_NAMES.users_table}
-                       ({config.USERS_DATA_COLUMNS.username}, {config.USERS_DATA_COLUMNS.password}, {config.USERS_DATA_COLUMNS.last_password_change_date})
+                       ({config.USERS_DATA_COLUMNS.username}, {config.USERS_DATA_COLUMNS.password},
+                       {config.USERS_DATA_COLUMNS.last_password_change_date})
                        VALUES (%s, %s, %s)
                        """,
             (username, bcrypt.hashpw(password.encode(config.PASSWORD_ENCODING_METHOD), bcrypt.gensalt()), datetime.now().date()),

@@ -287,8 +287,8 @@ def check_password_validation(password: str) -> exceptions.InvalidPassword | Non
         None
         if is_valid_flag
         else exceptions.InvalidPassword(
-            """A password should be 8-10 letters long, and include at least one uppercase letter, one lowercase letter,
-    a special character from the following [!@#$%]"""
+            """A password should be 8-10 letters long, and include at least one uppercase letter,
+            one lowercase letter, a special character from the following [!@#$%]"""
         )
     )
 

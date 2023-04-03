@@ -56,3 +56,4 @@ class IncorrectPassword(Exception):
     def __init__(self, message: str):
         super().__init__(message)
         self.criticality: int = 5
+        

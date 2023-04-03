@@ -2,14 +2,19 @@
 """
 
 from typing import Tuple
+from datetime import datetime
 
-from database_cursor import MySQLCursorCM
+import bcrypt
 
 import config
+from database_cursor import MySQLCursorCM
+from system_entrance.validators import (
+    check_password_validation,
+    PRELIMINARY_USERNAME_CHECKERS,
+    check_username_existence,
+)
 from feed import Feed
 from user_properties.address import Address, AddressFactory
-from user_properties.username import UserName
-from user_properties.password import Password
 from user_properties.time import Time
 
 
@@ -59,14 +64,12 @@ class User:
             new_feeds (Tuple[Feed, ...]): The new feeds tuple for user subscription modifying.
         """
         if self.feeds:
-            del self.feeds
+            self.delete_feeds()
         self.add_feeds(new_feeds)
 
-    @feeds.deleter
-    def feeds(self) -> None:
-        """Feeds property deleter.
-        Deletes all feeds from the subscriptions of the user.
-        
+    def __delete_all_feeds(self) -> None:
+        """Deletes all feeds from the subscriptions of the user.
+
         Raises:
             ValueError: If user's feeds not defined.
         """
@@ -96,7 +99,8 @@ class User:
             cursor.execute(
                 f"""
                 INSERT INTO {config.DATABASE_TABLES_NAMES.subscriptions_table}
-                            ({config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id}, {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id})
+                            ({config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id},
+                            {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id})
                 VALUES (%s, %s)
                 """,
                 new_subscriptions,
@@ -107,10 +111,12 @@ class User:
 
         Args:
             feeds (Tuple[Feed, ...]) : A tuple of feeds to be deleted.
-            
+
         Raises:
-            ValueError: 
+            ValueError:
         """
+        if not feeds:
+            self.__delete_all_feeds()
         if any(feed not in self.feeds for feed in feeds):
             raise ValueError("One or more feeds does not exist!")
         with MySQLCursorCM() as cursor:
@@ -154,7 +160,9 @@ class User:
             )
             addresses = cursor.fetchone()
             return (
-                tuple(AddressFactory.create(address) for address in addresses if address)
+                tuple(
+                    AddressFactory.create(address) for address in addresses if address
+                )
                 if addresses
                 else None
             )
@@ -210,12 +218,12 @@ class User:
         return all(address in self.addresses for address in addresses)
 
     @property
-    def username(self) -> UserName:
+    def username(self) -> str:
         """UserName property getter.
         Gets the username of this user.
 
         Returns:
-            UserName: UserName object of this user.
+            str: The name of this user.
         """
         with MySQLCursorCM() as cursor:
             cursor.execute(
@@ -225,32 +233,44 @@ class User:
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
-            return UserName(cursor.fetchone()[0])
+            return cursor.fetchone()[0]
 
     @username.setter
-    def username(self, new_username: UserName) -> None:
-        """UserName property setter.
+    def username(self, new_username: str) -> None:
+        """username property setter.
         Sets the UserName of this user.
 
         Args:
-            new_username (UserName): the new UserName for this user.
+            new_username (str): the new username for this user.
+        
+        Raises:
+            max: most critical error if is username invalid.
+            username_existence_exc: if new_username already exists in another account.
         """
+        report = [checker(new_username) for checker in PRELIMINARY_USERNAME_CHECKERS]
+        if any(report):
+            raise max(
+                filter(lambda event: isinstance(event, Exception), report),
+                key=lambda x: x.criticality,
+            )
+        if username_existence_exc := check_username_existence(new_username, False):
+            raise username_existence_exc
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
                 UPDATE {config.DATABASE_TABLES_NAMES.users_table}
-                SET {config.USERS_DATA_COLUMNS.username} = {new_username.username}
+                SET {config.USERS_DATA_COLUMNS.username} = {new_username}
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
 
     @property
-    def password(self) -> Password:
+    def password(self) -> str:
         """Password property getter.
         Gets the password object of this user.
 
         Returns:
-            Password: The password of this user.
+            str: The hashed password of this user.
         """
         with MySQLCursorCM() as cursor:
             cursor.execute(
@@ -261,22 +281,31 @@ class User:
                 """
             )
             if password := cursor.fetchone():
-                return Password(password[0])
-            raise ValueError("Password does not exist yet")
+                return password[0]
 
     @password.setter
-    def password(self, new_password: Password) -> None:
+    def password(self, new_password: str) -> None:
         """Password property setter.
         Sets the password of this user.
 
         Args:
-            new_password (Password): The new password for this user.
+            new_password (str): The new raw password for this user.
+            
+        Raises:
+            event: if password is invalid by one or more conditions of the check_password_validation.
         """
+        if event := check_password_validation(new_password):
+            raise event
+        hashed_pwd = bcrypt.hashpw(
+            new_password.encode(config.PASSWORD_ENCODING_METHOD), bcrypt.gensalt()
+        )
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
                 UPDATE {config.DATABASE_TABLES_NAMES.users_table}
-                SET {config.USERS_DATA_COLUMNS.username} = {new_password.password}
+                SET {config.USERS_DATA_COLUMNS.username} = {new_password},
+                {config.USERS_DATA_COLUMNS.password} = {hashed_pwd},
+                {config.USERS_DATA_COLUMNS.last_password_change_date} = {datetime.now().date()} 
                 WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                 """
             )
@@ -300,8 +329,10 @@ class User:
             )
             if all(result := cursor.fetchone()):
                 return Time(*result)
-            raise ValueError("""Could not find any timing settings.
-                                You must define sending preferences""")
+            raise ValueError(
+                """Could not find any timing settings.
+                                You must define sending preferences"""
+            )
 
     @sending_time.setter
     def sending_time(self, time: Time) -> None:
@@ -324,7 +355,7 @@ class User:
     def delete(self) -> None:
         """Deletes this user from the database /& system."""
         if self.feeds:
-            del self.feeds
+            self.delete_feeds()
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""
