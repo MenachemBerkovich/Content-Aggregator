@@ -10,7 +10,7 @@ from typing import Tuple, List, Callable
 from bcrypt import checkpw
 
 import config
-from database_cursor import MySQLCursorCM
+from databaseCursor import MySQLCursorCM
 from user import User
 import exceptions
 

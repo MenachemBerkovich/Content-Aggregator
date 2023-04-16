@@ -6,14 +6,14 @@ from datetime import datetime
 
 import bcrypt
 
-from system_entrance.validators import (
+from userAuthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     PASSWORD_CHECKERS,
     check_username_existence,
     check_credentials_compatibility,
 )
 import config
-from database_cursor import MySQLCursorCM
+from databaseCursor import MySQLCursorCM
 from user import User
 
 

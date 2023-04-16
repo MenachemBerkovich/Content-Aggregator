@@ -7,15 +7,15 @@ from datetime import datetime
 import bcrypt
 
 import config
-from database_cursor import MySQLCursorCM
-from system_entrance.validators import (
+from databaseCursor import MySQLCursorCM
+from userAuthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
 from feed import Feed
-from user_properties.address import Address, AddressFactory
-from user_properties.time import Time
+from userProperties.address import Address, AddressFactory
+from userProperties.time import Time
 
 
 class User:
