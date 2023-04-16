@@ -11,7 +11,7 @@ import pwdHandler
 
 import config
 from databaseCursor import MySQLCursorCM
-from user import User
+from user.userInterface import User
 import exceptions
 
 

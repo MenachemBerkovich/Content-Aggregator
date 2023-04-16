@@ -15,7 +15,7 @@ from validators import (
 )
 import config
 from databaseCursor import MySQLCursorCM
-from user import User
+from user.userInterface import User
 
 
 def __set_critical(exceptions: Tuple[Exception, ...]) -> Exception:

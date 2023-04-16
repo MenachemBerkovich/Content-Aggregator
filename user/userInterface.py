@@ -4,16 +4,16 @@
 from typing import Tuple
 from datetime import datetime
 
-from userAuthentications import pwdHandler
 
 import config
 from databaseCursor import MySQLCursorCM
+from userAuthentications import pwdHandler
 from userAuthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from feed import Feed, FeedFactory
+from feeds.feed import Feed, FeedFactory
 from userProperties.address import Address, AddressFactory
 from userProperties.time import Time
 
@@ -242,7 +242,7 @@ class User:
 
         Args:
             new_username (str): the new username for this user.
-        
+
         Raises:
             max: most critical error if is username invalid.
             username_existence_exc: if new_username already exists in another account.
@@ -290,7 +290,7 @@ class User:
 
         Args:
             new_password (str): The new raw password for this user.
-            
+
         Raises:
             event: if password is invalid by one or more conditions of the check_password_validation.
         """

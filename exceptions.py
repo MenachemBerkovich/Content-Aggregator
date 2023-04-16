@@ -2,7 +2,7 @@
 """
 
 
-from user import User
+from user.userInterface import User
 
 
 class InvalidUserName(Exception):
