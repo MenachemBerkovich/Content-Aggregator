@@ -4,7 +4,7 @@
 from typing import Tuple
 from datetime import datetime
 
-import bcrypt
+from userAuthentications import pwdHandler
 
 import config
 from databaseCursor import MySQLCursorCM
@@ -13,7 +13,7 @@ from userAuthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from feed import Feed
+from feed import Feed, FeedFactory
 from userProperties.address import Address, AddressFactory
 from userProperties.time import Time
 
@@ -53,7 +53,7 @@ class User:
                 WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
                 """
             )
-            return tuple(Feed(feed[0]) for feed in cursor.fetchall())
+            return tuple(FeedFactory.create(feed[0]) for feed in cursor.fetchall())
 
     @feeds.setter
     def feeds(self, *new_feeds: Tuple[Feed, ...]) -> None:
@@ -296,9 +296,7 @@ class User:
         """
         if event := check_password_validation(new_password):
             raise event
-        hashed_pwd = bcrypt.hashpw(
-            new_password.encode(config.PASSWORD_ENCODING_METHOD), bcrypt.gensalt()
-        )
+        hashed_pwd = pwdHandler.encrypt_password(new_password)
         with MySQLCursorCM() as cursor:
             cursor.execute(
                 f"""

@@ -1,12 +1,27 @@
-class Feed:
-    def __init__(self, id: int) -> None:
+# TODO docstring for module and for functions and classes
+
+
+from abc import ABC, abstractmethod
+
+class Feed(ABC):
+    def __init__(self, id: int, url: str) -> None:
         self.id = id
+        if not self._is_valid():
+            raise ValueError(f"Invalid url: {url}")
+    @abstractmethod
+    def _is_valid(self) -> bool:
+        pass
 
 class RSSFeed(Feed):
-    def __init__(self, url: str) -> None:
-        super().__init__(id)
+    def _is_valid(self) -> bool:
+        return
 
 class HTMLFeed(Feed):
-    def __init__(self, url: str) -> None:
-        super().__init__(id)
-        
+    def _is_valid(self) -> bool:
+        return
+
+
+class FeedFactory:
+    @staticmethod
+    def create(url: str) -> Feed:
+        pass

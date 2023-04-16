@@ -4,9 +4,10 @@ by login method or signup method. Including username and password verification.
 from typing import Tuple, List
 from datetime import datetime
 
-import bcrypt
+import pwdHandler
 
-from userAuthentications.validators import (
+
+from validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     PASSWORD_CHECKERS,
     check_username_existence,
@@ -92,7 +93,7 @@ def save_new_user(username: str, password: str) -> int:
                        {config.USERS_DATA_COLUMNS.last_password_change_date})
                        VALUES (%s, %s, %s)
                        """,
-            (username, bcrypt.hashpw(password.encode(config.PASSWORD_ENCODING_METHOD), bcrypt.gensalt()), datetime.now().date()),
+            (username, pwdHandler.encrypt_password(password), datetime.now().date()),
         )
         return cursor.lastrowid
 

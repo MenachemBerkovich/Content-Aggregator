@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Tuple, List, Callable
 
 
-from bcrypt import checkpw
+import pwdHandler
 
 import config
 from databaseCursor import MySQLCursorCM
@@ -332,10 +332,7 @@ def check_credentials_compatibility(
                        """
         )
         result = cursor.fetchone()
-        is_match_flag = checkpw(
-            password.encode(config.PASSWORD_ENCODING_METHOD),
-            result[0].encode(config.PASSWORD_ENCODING_METHOD),
-        )
+        is_match_flag = pwdHandler.is_same_password(password, result[0])
     return (
         exceptions.PasswordNotUpdated("A new password must be chosen", User(result[2]))
         if is_match_flag and has_been_a_year(result[1])
