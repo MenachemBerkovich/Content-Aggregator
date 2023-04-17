@@ -11,11 +11,8 @@ import config
 
 
 class MySQLCursorCM:
-    def __new__(cls):
-        if not hasattr(cls, "instance"):
-            cls.instance = super().__new__(cls)
-        return cls.instance
-
+    """Context manager for easy MySQL connection.
+    """
     def __init__(self):
         self.__host: str = config.SQL_HOST
         self.__username: str = config.SQL_USERNAME

@@ -14,7 +14,7 @@ from validators import (
     check_credentials_compatibility,
 )
 import config
-from databaseCursor import MySQLCursorCM
+from sqlManagement.databaseCursor import MySQLCursorCM
 from user.userInterface import User
 
 

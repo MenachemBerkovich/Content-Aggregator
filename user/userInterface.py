@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 import config
-from databaseCursor import MySQLCursorCM
+from sqlManagement.databaseCursor import MySQLCursorCM
 from userAuthentications import pwdHandler
 from userAuthentications.validators import (
     check_password_validation,
@@ -199,8 +199,10 @@ class User:
         with MySQLCursorCM() as cursor:
             for address in addresses:
                 cursor.execute(
+                     # TODO correct statement for delete one column in this case
+                     # is to UPDATE tha desired field to NULL or None of python.
                     f"""
-                    DELETE {address.db_index(address.address)}
+                    DELETE {address.db_index(address.address)} 
                     FROM {config.DATABASE_TABLES_NAMES.users_table}
                     WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
                     """
