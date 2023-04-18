@@ -1,8 +1,14 @@
 """classes for Feed objects of a different types.
 """
 
-from abc import ABC, abstractmethod
 
+from abc import ABC, abstractmethod
+import contextlib
+
+import feedparser
+
+import config
+from sqlManagement import sqlQueries
 from feeds.rating import FeedRatingManager, ObjectResetOperationClassifier
 
 
@@ -10,6 +16,7 @@ class Feed(ABC):
     """Represents a feed in the system.
     An half-abstract class for all feed types.
     """
+
     def __init__(self, feed_id: int) -> None:
         self._id = feed_id
         self._url: str | None = None
@@ -42,7 +49,12 @@ class Feed(ABC):
             str: Feed url
         """
         if not self._url:
-            self._url = None #TODO sql query.
+            self._url = sqlQueries.select(
+                cols=config.FEEDS_DATA_COLUMNS.link,
+                table=config.DATABASE_TABLES_NAMES.feeds_table,
+                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+                desired_rows_num=1,
+            )[0][0]
         return self._url
 
     @url.setter
@@ -58,7 +70,12 @@ class Feed(ABC):
         """
         if not self._is_valid_url(new_url):
             raise ValueError("Invalid url")
-        # TODO here: update url query
+        self._url = new_url
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            updates_dict={config.FEEDS_DATA_COLUMNS.link: new_url},
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+        )
 
     @property
     def rating(self) -> float:
@@ -68,38 +85,56 @@ class Feed(ABC):
             float: The rating of this feed.
         """
         if not self._rating:
-            rating = ""# TODO sql query for int rating
-            self._rating  = FeedRatingManager(rating)
+            rating = sqlQueries.select(
+                cols=config.FEEDS_DATA_COLUMNS.rating,
+                table=config.DATABASE_TABLES_NAMES.feeds_table,
+                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+                desired_rows_num=1,
+            )[0][0]
+            self._rating = FeedRatingManager(rating)
         return self._rating.rating
 
+    def _set_final_rating(self, rating_amount: float) -> float:
+        """set the final rating of the feed,
+        when it's setter is called with +=, -= or assignment operator.
+
+        Args:
+            rating_amount (float): The rating amount for calculate final rating by him.
+
+        Returns:
+            float: The final rating.
+        """
+        final_rating = rating_amount
+        if self._rating.last_operation == ObjectResetOperationClassifier.ADDITION:
+            final_rating = self.rating + rating_amount
+        elif self._rating.last_operation == ObjectResetOperationClassifier.SUBTRACTION:
+            final_rating = self.rating - rating_amount
+        return final_rating
+
     @rating.setter
-    def rating(self, new_rating: float) -> None:
+    def rating(self, rating_amount: float) -> None:
         """rating property setter.
         can be done with +=, -= or simple assignment (=).
 
         Args:
-            new_rating (float): The new_rating for reset the rating by him. 
+            rating_amount (float): The rating amount for reset the rating by him.
+
+        Helper functions:
+            _set_final_rating: Sets the final rating by the desired reset operation.
         """
-        if self._rating.last_operation == ObjectResetOperationClassifier.ADDITION:
-            ""
-            #TODO sql query should adds thr new rating
-        elif self._rating.last_operation == ObjectResetOperationClassifier.SUBTRACTION:
-            ""
-            #TODO sql query should subtract thr new rating
-        else:
-            self._rating.rating = new_rating
+        final_rating = self._set_final_rating(rating_amount)
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            updates_dict={config.FEEDS_DATA_COLUMNS.rating: final_rating},
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self.id}",
+        )
+        self._rating.rating = final_rating
 
     @staticmethod
     @abstractmethod
     def _is_valid_url(url: str) -> bool:
         """Abstract method to check if a url is valid
         depending on its type.
-
-        Args:
-            url (str): The url to check.
-
-        Returns:
-            bool: True if the url is valid, False otherwise.
         """
         pass
 
@@ -108,6 +143,7 @@ class RSSFeed(Feed):
     """Concrete class for RSS feeds,
     with specific implementation for _is_valid_url function.
     """
+
     @staticmethod
     def _is_valid_url(url: str) -> bool:
         """static method to check whether the given url is valid for RSS feeds or not.
@@ -118,14 +154,18 @@ class RSSFeed(Feed):
         Returns:
             bool: True if the url is valid, False otherwise.
         """
-        return
-        # TODO implemenation
+        with contextlib.suppress(Exception):
+            feed = feedparser.parse(url)
+            if feed.version:
+                return True
+        return False
 
 
 class HTMLFeed(Feed):
     """Concrete class for HTML feeds,
     with specific implementation for _is_valid_url function.
     """
+
     @staticmethod
     def _is_valid_url(url: str) -> bool:
         """static method to check whether the given url is valid for HTML feeds or not.
@@ -137,12 +177,13 @@ class HTMLFeed(Feed):
             bool: True if the url is valid, False otherwise.
         """
         return
+
     # TODO implemenation
 
 
 class FeedFactory:
-    """Factory for creating a custom feed object by url parameter
-    """
+    """Factory for creating a custom feed object by url parameter"""
+
     @staticmethod
     def create(url: str) -> Feed:
         pass

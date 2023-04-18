@@ -1,6 +1,7 @@
-"""_summary_
 """
-# TODO module docs
+Functions collection for some custom SQL queries required for the system.
+"""
+
 from typing import List, Tuple, Iterable, Any, Dict
 
 from databaseCursor import MySQLCursorCM
@@ -12,7 +13,7 @@ def select(
     table: str,
     condition_expr: str | None = None,
     desired_rows_num: int,
-) -> List[Tuple[str, ...]]:
+) -> List[Tuple[Any, ...]]:
     """Select the desired columns and rows
     from the specified table in the database defined by MySQLCursorCM class.
 
