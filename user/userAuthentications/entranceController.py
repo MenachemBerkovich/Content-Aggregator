@@ -18,20 +18,7 @@ from sqlManagement.databaseCursor import MySQLCursorCM
 from user.userInterface import User
 
 
-def __set_critical(exceptions: Tuple[Exception, ...]) -> Exception:
-    """Sets the most critical exception of the exceptions tuple.
-
-    Args:
-        exceptions (Tuple[Exception, ...]): A tuple of exceptions that are candidates to be raised.
-
-    Returns:
-        Exception: The most critical exception of the exceptions tuple.
-                   Determined by the criticality attribute of the exception.
-    """
-    return max(exceptions, key=lambda exception: exception.criticality)
-
-
-def __get_credentials_validation_report(
+def _get_credentials_validation_report(
     username: str, password: str
 ) -> List[Exception | None]:
     """Creates a list of the credentials validators results on the given username and password.
@@ -54,7 +41,7 @@ def __get_credentials_compatibility_report(
     """Creates a list of the credentials verifiers results on the given username and password.
     It is generated using the sql queries.
     It is designed and should be called,
-    only if all results of the __get_credentials_validation_report, are None.
+    only if all results of the _get_credentials_validation_report, are None.
 
     Args:
         username (str): The username to check.
@@ -112,15 +99,16 @@ def log_in(username: str, password: str) -> User:
     Returns:
         User: If the user is successfully logged in, returns the User object.
     """
-    validation_list = __get_credentials_validation_report(username, password)
+    validation_list = _get_credentials_validation_report(username, password)
     event = (
-        __set_critical(
+        max(
             tuple(
                 filter(
                     lambda event: isinstance(event, Exception),
                     validation_list,
                 )
-            )
+            ),
+            key=lambda event: event.criticality,
         )
         if any(validation_list)
         else __get_credentials_compatibility_report(username, password, True)
@@ -151,10 +139,11 @@ def sign_up(username: str, password: str) -> User:
     Returns:
         User: A User instance for the new user.
     """
-    validation_list = __get_credentials_validation_report(username, password)
+    validation_list = _get_credentials_validation_report(username, password)
     event = (
-        __set_critical(
-            tuple(filter(lambda event: isinstance(event, Exception), validation_list))
+        max(
+            tuple(filter(lambda event: isinstance(event, Exception), validation_list)),
+            key=lambda event: event.criticality,
         )
         if any(validation_list)
         else check_username_existence(username, False)
