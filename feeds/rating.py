@@ -5,18 +5,19 @@ and still allow operations like +=, and -= in a protected way (with updates to t
 
 
 from __future__ import annotations
-from enum import Enum
 from functools import total_ordering
+
+from common import ObjectResetOperationClassifier
 
 
 @total_ordering
-class FeedRatingManager:
+class FeedRatingResetManager:
     """Manager of feed's rating setter and getter interface.
     """
     def __init__(self, rating: float | None):
         if not rating:
             rating = 0
-        self.rating = rating
+        self.rating: int = rating
         self._last_operation: ObjectResetOperationClassifier | None = None
 
     def __repr__(self) -> str:
@@ -42,11 +43,3 @@ class FeedRatingManager:
 
     def __gt__(self, rating: float) -> bool:
         return self.rating > rating
-
-class ObjectResetOperationClassifier(Enum):
-    """Enum class contains possible setter's object operations, like:
-    +=, -=, etc.
-    """
-    ADDITION = 1
-    SUBTRACTION = 2
-    

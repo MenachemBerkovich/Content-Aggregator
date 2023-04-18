@@ -17,7 +17,8 @@ from userAuthentications.validators import (
 from feeds.feed import Feed, FeedFactory
 from userProperties.address import Address, AddressFactory
 from userProperties.time import Time
-from userProperties.collections import Feeds, Addresses
+from userProperties.collections import FeedsResetManager, Addresses
+from common import ObjectResetOperationClassifier
 
 
 class User:
@@ -25,7 +26,7 @@ class User:
 
     def __init__(self, user_id: int) -> None:
         self._id: int = user_id
-        self._feeds: Feeds | None = None
+        self._feeds: FeedsResetManager | None = None
         self._addresses: Addresses | None = None
         self._username: str | None = None
         self._password: str | None = None
@@ -54,107 +55,83 @@ class User:
         return self._id
 
     @property
-    def feeds(self) -> Tuple[Feed, ...]:
+    def feeds(self) -> FeedsResetManager:
         """Feeds property getter.
         Gets all feeds where this user is subscribed to.
 
         Returns:
-            Tuple[Feed, ...]: A tuple of Feed objects.
+            FeedsResetManager: An object contains an set of user feeds.
         """
-        with MySQLCursorCM() as cursor:
-            cursor.execute(
-                f"""
-                SELECT {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id}
-                FROM {config.DATABASE_TABLES_NAMES.subscriptions_table}
-                WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
-                """
-            )
-            return tuple(FeedFactory.create(feed[0]) for feed in cursor.fetchall())
+        if not self._feeds:
+            if db_response := sqlQueries.select(
+                cols=config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
+                table=config.DATABASE_TABLES_NAMES.subscriptions_table,
+                condition_expr=f"{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}",
+            ):
+                self._feeds = FeedsResetManager((feed[0] for feed in db_response))
+        return self._feeds
 
     @feeds.setter
-    def feeds(self, *new_feeds: Tuple[Feed, ...]) -> None:
+    def feeds(self, feeds: FeedsResetManager) -> None:
         """Feeds property setter.
         Resets the feed subscriptions of the user.
 
         Args:
-            new_feeds (Tuple[Feed, ...]): The new feeds tuple for user subscription modifying.
+            feeds (FeedsResetManager): An object contains an set of user feeds to reset by them.
         """
-        if self.feeds:
-            self.delete_feeds()
-        self.add_feeds(new_feeds)
+        if self._feeds.last_operation == ObjectResetOperationClassifier.ADDITION:
+            self._add_feeds(feeds)
+        elif self._feeds.last_operation == ObjectResetOperationClassifier.SUBTRACTION:
+            self._delete_feeds(feeds)
+        else:
+            self._delete_feeds(self.feeds)
+            self._add_feeds(feeds)
+            self._feeds = feeds
 
-    def __delete_all_feeds(self) -> None:
-        """Deletes all feeds from the subscriptions of the user.
-
-        Raises:
-            ValueError: If user's feeds not defined.
-        """
-        if not self.feeds:
-            raise ValueError("No user's feeds")
-        with MySQLCursorCM() as cursor:
-            cursor.execute(
-                f"""
-                DELETE FROM {config.DATABASE_TABLES_NAMES.subscriptions_table} 
-                WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
-                """
-            )
-
-    def add_feeds(self, *feeds: Tuple[Feed, ...]) -> None:
+    def _add_feeds(self, feeds: FeedsResetManager) -> None:
         """Subscribes the user to some new feeds.
 
         Args:
-            feeds (Tuple[Feed, ...]): The feeds to subscribe to.
-
-        Raises:
-            ValueError: If One or more of new_feeds already exists.
+            feeds (FeedsResetManager): The feeds to subscribe to.
         """
-        if any(new_feed in self.feeds for new_feed in feeds):
-            raise ValueError("One or more feed/s already exists")
-        with MySQLCursorCM() as cursor:
-            new_subscriptions = [(feed.id, self.id) for feed in feeds]
-            cursor.execute(
-                f"""
-                INSERT INTO {config.DATABASE_TABLES_NAMES.subscriptions_table}
-                            ({config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id},
-                            {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id})
-                VALUES (%s, %s)
-                """,
-                new_subscriptions,
+        sqlQueries.insert(
+                table=config.DATABASE_TABLES_NAMES.subscriptions_table,
+                cols=(
+                    config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
+                    config.SUBSCRIPTIONS_DATA_COLUMNS.user_id,
+                ),
+                values=((feed.id, self.id) for feed in feeds),
             )
 
-    def delete_feeds(self, *feeds: Tuple[Feed, ...]) -> None:
-        """Deletes some feeds from the user subscriptions.
+    def _delete_feeds(self, feeds: FeedsResetManager) -> None:
+        """Deletes feeds from the user subscriptions.
 
         Args:
-            feeds (Tuple[Feed, ...]) : A tuple of feeds to be deleted.
-
-        Raises:
-            ValueError:
+            feeds (FeedsResetManager): An object contains an set of user feeds to be deleted.
         """
-        if not feeds:
-            self.__delete_all_feeds()
-        if any(feed not in self.feeds for feed in feeds):
-            raise ValueError("One or more feeds does not exist!")
-        with MySQLCursorCM() as cursor:
-            cursor.execute(
-                f"""
-                DELETE FROM {config.DATABASE_TABLES_NAMES.subscriptions_table}
-                WHERE {config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self.id}
-                AND {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id} IN ({','.join(str(feed.id) for feed in feeds)})
-                """
-            )
+        sqlQueries.delete(
+            table=config.DATABASE_TABLES_NAMES.subscriptions_table,
+            condition_expr=f"""{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}
+                            AND {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id}
+                            IN ({','.join(str(feed.id) for feed in feeds.feeds_set)})""",
+        )
 
-    def is_subscribed_to(self, *feeds: Tuple[Feed, ...]) -> bool:
+    def is_subscribed_to(self, feeds: FeedsResetManager) -> bool:
         """Checks if user is subscribed to the given feeds.
 
         Args:
-            feeds (Tuple[Feed, ...]): A tuple of feeds to check for subscriptions.
+            feeds (FeedsResetManager): An object contains an set of user feeds to be deleted.
 
         Returns:
             bool: True if user is subscribed to all the given feeds, False otherwise.
         """
-        return all(feed in self.feeds for feed in feeds)
+        return self.feeds == feeds
 
+    # TODO continue embedding INTERFACE method like above (in feeds), and implement custom class
+    # for this in collections.py module. consider to implement
+    # an abstract class for FeedsResetManager and AddressesResetManager
+    # Implement __hash__ and __eq__ methods for Address class (so you can hold it in set of unique objects)
+    # TODO Implement methods to enable using 'in' keyword, and to be iterable - FeedsResetManager and AddressesResetManager classes 
     @property
     def addresses(self) -> Tuple[Address, ...] | None:
         """Address property getter.
@@ -366,11 +343,12 @@ class User:
             },
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
+        self._sending_time = time
 
     def delete(self) -> None:
         """Deletes this user from the database."""
         if self.feeds:
-            self.delete_feeds()
+            self._delete_feeds(self.feeds)
         sqlQueries.delete(
             table=config.DATABASE_TABLES_NAMES.users_table,
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",

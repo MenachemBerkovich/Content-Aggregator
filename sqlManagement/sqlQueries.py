@@ -12,7 +12,7 @@ def select(
     cols: str | Iterable[str] = "*",
     table: str,
     condition_expr: str | None = None,
-    desired_rows_num: int,
+    desired_rows_num: int | None = None,
 ) -> List[Tuple[Any, ...]]:
     """Select the desired columns and rows
     from the specified table in the database defined by MySQLCursorCM class.
@@ -35,7 +35,7 @@ def select(
         query_str += f" WHERE {condition_expr}"
     with MySQLCursorCM as cursor:
         cursor.execute(query_str)
-        return cursor.fetchmany(size=desired_rows_num)
+        return cursor.fetchmany(size=desired_rows_num) if desired_rows_num else cursor.fetchall()
 
 
 def insert(

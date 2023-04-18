@@ -9,7 +9,7 @@ import feedparser
 
 import config
 from sqlManagement import sqlQueries
-from feeds.rating import FeedRatingManager, ObjectResetOperationClassifier
+from feeds.rating import FeedRatingResetManager, ObjectResetOperationClassifier
 
 
 class Feed(ABC):
@@ -20,7 +20,7 @@ class Feed(ABC):
     def __init__(self, feed_id: int) -> None:
         self._id = feed_id
         self._url: str | None = None
-        self._rating: FeedRatingManager | None = None
+        self._rating: FeedRatingResetManager | None = None
 
     def __repr__(self):
         return f"Feed(id={self._id})"
@@ -31,6 +31,13 @@ class Feed(ABC):
                 url        = {self.url},
                 rating    = {self.rating},
                 """
+
+    # Tow next functions: for allowing management of feeds set without multiplications.
+    def __eq__(self, other) -> bool:
+        return self._id == other.id
+
+    def __hash__(self) -> int:
+        return hash(self._id)
 
     @property
     def id(self) -> int:
@@ -91,7 +98,7 @@ class Feed(ABC):
                 condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
                 desired_rows_num=1,
             )[0][0]
-            self._rating = FeedRatingManager(rating)
+            self._rating = FeedRatingResetManager(rating)
         return self._rating.rating
 
     def _set_final_rating(self, rating_amount: float) -> float:
