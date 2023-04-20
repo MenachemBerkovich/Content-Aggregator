@@ -1,23 +1,22 @@
 """Implementation for the User interface in the Content Aggregator system.
 """
 
-from typing import Tuple
 from datetime import datetime
 
 
-import config
 from sqlManagement import sqlQueries
-from userAuthentications import pwdHandler
-from userAuthentications.validators import (
+from feeds.feed import FeedFactory
+from common import ObjectResetOperationClassifier
+from .. import config
+from .userAuthentications import pwdHandler
+from .userAuthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from feeds.feed import FeedFactory
-from userProperties.address import AddressFactory
-from userProperties.time import Time
-from userProperties.collections import UserCollectionResetController
-from common import ObjectResetOperationClassifier
+from .userProperties.address import AddressFactory
+from .userProperties.time import Time
+from .userProperties.collections import UserCollectionResetController
 
 
 class User:
@@ -179,7 +178,7 @@ class User:
         else:
             self._delete_addresses(self.addresses)
             self._add_addresses(addresses)
-            self._feeds = addresses
+            self._addresses = addresses
 
     def _add_addresses(self, new_addresses: UserCollectionResetController) -> None:
         """Adds a new address into this user.
@@ -204,7 +203,7 @@ class User:
         """
         sqlQueries.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
-            updates_dict={address.db_index: None for address in addresses}
+            updates_dict={address.db_index: None for address in addresses},
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
 
