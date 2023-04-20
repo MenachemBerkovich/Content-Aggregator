@@ -4,17 +4,19 @@ from __future__ import annotations
 from typing import Tuple, Set
 
 from common import ObjectResetOperationClassifier
-from feeds.feed import Feed
+from feeds.feed import FeedDataManager
+from address import AddressDataManager
 
 
-# TODO rename to good name like Manager, or something like that.
-class FeedsResetManager:
-    def __init__(self, *feeds: Tuple[Feed, ...]):
-        self.feeds_set: Set[Feed] = set(feeds)
+class UserCollectionResetController:
+    """Controller for resets of user collections
+    """
+    def __init__(self, *collection: Tuple[FeedDataManager | AddressDataManager, ...]):
+        self.collection_set: Set[FeedDataManager | AddressDataManager] = set(collection)
         self._last_operation: ObjectResetOperationClassifier | None= None
 
     def __repr__(self) -> str:
-        return str(self.feeds_set)
+        return str(self.collection_set)
 
     @property
     def last_operation(self) -> ObjectResetOperationClassifier | None:
@@ -23,26 +25,21 @@ class FeedsResetManager:
         """
         return self._last_operation
 
-    def __eq__(self, other: FeedsResetManager) -> bool:
-        return self.feeds_set == other.feeds_set
+    def __eq__(self, other: UserCollectionResetController) -> bool:
+        return self.collection_set == other.collection_set
 
-    def __iadd__(self, other: FeedsResetManager):
-        if any(feed in self.feeds_set for feed in other.feed_set):
-            raise ValueError("One or more feed/s already exists")
-        self.feeds_set.update(other.feeds_set)
+    def __iadd__(self, other: UserCollectionResetController):
+        if any(item in self.collection_set for item in other.collection_set):
+            raise ValueError(f"One or more {other.__class__.__name__} already exists")
+        self.collection_set.update(other.collection_set)
         self._last_operation = ObjectResetOperationClassifier.ADDITION
 
-    def __isub__(self, other: FeedsResetManager):
-        if any(feed not in self.feeds_set for feed in other.feeds):
-            raise KeyError("One or more feeds does not exist!")
-        for elem in other.feeds_set:
-            self.feeds_set.remove(elem)
+    def __isub__(self, other: UserCollectionResetController):
+        if any(item not in self.collection_set for item in other.collection_set):
+            raise KeyError(f"One or more {other.__class__.__name__} does not exist!")
+        for elem in other.collection_set:
+            self.collection_set.remove(elem)
         self._last_operation = ObjectResetOperationClassifier.SUBTRACTION
 
     def __len__(self):
-        return len(self.feeds_set)
-
-
-
-class Addresses:
-    pass
+        return len(self.collection_set)

@@ -14,7 +14,7 @@ from validators import (
     check_credentials_compatibility,
 )
 import config
-from sqlManagement.databaseCursor import MySQLCursorCM
+from sqlManagement import sqlQueries
 from user.userInterface import User
 
 
@@ -72,17 +72,15 @@ def save_new_user(username: str, password: str) -> int:
     Returns:
         int: The new user row id.
     """
-    with MySQLCursorCM() as cursor:
-        cursor.execute(
-            f"""
-                       INSERT INTO {config.DATABASE_TABLES_NAMES.users_table}
-                       ({config.USERS_DATA_COLUMNS.username}, {config.USERS_DATA_COLUMNS.password},
-                       {config.USERS_DATA_COLUMNS.last_password_change_date})
-                       VALUES (%s, %s, %s)
-                       """,
-            (username, pwdHandler.encrypt_password(password), datetime.now().date()),
-        )
-        return cursor.lastrowid
+    return sqlQueries.insert(
+        table=config.DATABASE_TABLES_NAMES.users_table,
+        cols=(
+            config.USERS_DATA_COLUMNS.username,
+            config.USERS_DATA_COLUMNS.password,
+            config.USERS_DATA_COLUMNS.last_password_change_date,
+        ),
+        values=(username, pwdHandler.encrypt_password(password), datetime.now().date()),
+    )
 
 
 def log_in(username: str, password: str) -> User:

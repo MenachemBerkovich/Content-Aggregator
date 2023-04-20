@@ -12,7 +12,7 @@ from sqlManagement import sqlQueries
 from feeds.rating import FeedRatingResetManager, ObjectResetOperationClassifier
 
 
-class Feed(ABC):
+class FeedDataManager(ABC):
     """Represents a feed in the system.
     An half-abstract class for all feed types.
     """
@@ -32,7 +32,7 @@ class Feed(ABC):
                 rating    = {self.rating},
                 """
 
-    # Tow next functions: for allowing management of feeds set without multiplications.
+    # Intended: for allowing management of feeds set without multiplications.
     def __eq__(self, other) -> bool:
         return self._id == other.id
 
@@ -146,11 +146,16 @@ class Feed(ABC):
         pass
 
 
-class RSSFeed(Feed):
+class RSSFeedDataManager(FeedDataManager):
     """Concrete class for RSS feeds,
     with specific implementation for _is_valid_url function.
     """
-
+    def __new__(cls, feed_id: int) -> object:
+        # Intended for instance.__class__.__name__ call.
+        # To avoid print of 'DataManager' in string output.
+        # Needed in user.collections.UserCollectionResetController.__iadd__ and __isub__ methods.
+        cls.__name__ = "RSSFeed"
+        return super().__new__(cls, feed_id, (), {})
     @staticmethod
     def _is_valid_url(url: str) -> bool:
         """static method to check whether the given url is valid for RSS feeds or not.
@@ -168,10 +173,17 @@ class RSSFeed(Feed):
         return False
 
 
-class HTMLFeed(Feed):
+class HTMLFeed(FeedDataManager):
     """Concrete class for HTML feeds,
     with specific implementation for _is_valid_url function.
     """
+
+    def __new__(cls, feed_id: int) -> object:
+        # Intended for instance.__class__.__name__ call.
+        # To avoid print of 'DataManager' in string output.
+        # Needed in user.collections.UserCollectionResetController.__iadd__ and __isub__ methods.
+        cls.__name__ = "HTMLFeed"
+        return super().__new__(cls, feed_id, (), {})
 
     @staticmethod
     def _is_valid_url(url: str) -> bool:
@@ -192,5 +204,5 @@ class FeedFactory:
     """Factory for creating a custom feed object by url parameter"""
 
     @staticmethod
-    def create(url: str) -> Feed:
+    def create(url: str) -> FeedDataManager:
         pass

@@ -6,7 +6,6 @@ from datetime import datetime
 
 
 import config
-from sqlManagement.databaseCursor import MySQLCursorCM
 from sqlManagement import sqlQueries
 from userAuthentications import pwdHandler
 from userAuthentications.validators import (
@@ -14,10 +13,10 @@ from userAuthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from feeds.feed import Feed, FeedFactory
-from userProperties.address import Address, AddressFactory
+from feeds.feed import FeedFactory
+from userProperties.address import AddressFactory
 from userProperties.time import Time
-from userProperties.collections import FeedsResetManager, Addresses
+from userProperties.collections import UserCollectionResetController
 from common import ObjectResetOperationClassifier
 
 
@@ -26,8 +25,8 @@ class User:
 
     def __init__(self, user_id: int) -> None:
         self._id: int = user_id
-        self._feeds: FeedsResetManager | None = None
-        self._addresses: Addresses | None = None
+        self._feeds: UserCollectionResetController | None = None
+        self._addresses: UserCollectionResetController | None = None
         self._username: str | None = None
         self._password: str | None = None
         self._sending_time: str | None = None
@@ -55,12 +54,14 @@ class User:
         return self._id
 
     @property
-    def feeds(self) -> FeedsResetManager:
+    def feeds(self) -> UserCollectionResetController | None:
         """Feeds property getter.
         Gets all feeds where this user is subscribed to.
 
         Returns:
-            FeedsResetManager: An object contains an set of user feeds.
+            UserCollectionResetController | None: An object contains an set of user feeds,
+            if it has any feed,
+            None otherwise.
         """
         if not self._feeds:
             if db_response := sqlQueries.select(
@@ -68,16 +69,18 @@ class User:
                 table=config.DATABASE_TABLES_NAMES.subscriptions_table,
                 condition_expr=f"{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}",
             ):
-                self._feeds = FeedsResetManager((feed[0] for feed in db_response))
+                data = (FeedFactory.create(feed[0]) for feed in db_response)
+                self._feeds = UserCollectionResetController(*data)
         return self._feeds
 
     @feeds.setter
-    def feeds(self, feeds: FeedsResetManager) -> None:
+    def feeds(self, feeds: UserCollectionResetController) -> None:
         """Feeds property setter.
         Resets the feed subscriptions of the user.
 
         Args:
-            feeds (FeedsResetManager): An object contains an set of user feeds to reset by them.
+            feeds (UserCollectionResetController): An object contains an set of user feeds
+            to reset by them.
         """
         if self._feeds.last_operation == ObjectResetOperationClassifier.ADDITION:
             self._add_feeds(feeds)
@@ -88,26 +91,27 @@ class User:
             self._add_feeds(feeds)
             self._feeds = feeds
 
-    def _add_feeds(self, feeds: FeedsResetManager) -> None:
+    def _add_feeds(self, feeds: UserCollectionResetController) -> None:
         """Subscribes the user to some new feeds.
 
         Args:
-            feeds (FeedsResetManager): The feeds to subscribe to.
+            feeds (UserCollectionResetController): The feeds to subscribe to.
         """
         sqlQueries.insert(
-                table=config.DATABASE_TABLES_NAMES.subscriptions_table,
-                cols=(
-                    config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
-                    config.SUBSCRIPTIONS_DATA_COLUMNS.user_id,
-                ),
-                values=((feed.id, self.id) for feed in feeds),
-            )
+            table=config.DATABASE_TABLES_NAMES.subscriptions_table,
+            cols=(
+                config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
+                config.SUBSCRIPTIONS_DATA_COLUMNS.user_id,
+            ),
+            values=([feed.id, self.id] for feed in feeds),
+        )
 
-    def _delete_feeds(self, feeds: FeedsResetManager) -> None:
+    def _delete_feeds(self, feeds: UserCollectionResetController) -> None:
         """Deletes feeds from the user subscriptions.
 
         Args:
-            feeds (FeedsResetManager): An object contains an set of user feeds to be deleted.
+            feeds (UserCollectionResetController): An object contains an set of user feeds
+            to be deleted.
         """
         sqlQueries.delete(
             table=config.DATABASE_TABLES_NAMES.subscriptions_table,
@@ -116,11 +120,12 @@ class User:
                             IN ({','.join(str(feed.id) for feed in feeds.feeds_set)})""",
         )
 
-    def is_subscribed_to(self, feeds: FeedsResetManager) -> bool:
+    def is_subscribed_to(self, feeds: UserCollectionResetController) -> bool:
         """Checks if user is subscribed to the given feeds.
 
         Args:
-            feeds (FeedsResetManager): An object contains an set of user feeds to be deleted.
+            feeds (UserCollectionResetController): An object contains an set of user feeds
+            to be deleted.
 
         Returns:
             bool: True if user is subscribed to all the given feeds, False otherwise.
@@ -129,89 +134,89 @@ class User:
 
     # TODO continue embedding INTERFACE method like above (in feeds), and implement custom class
     # for this in collections.py module. consider to implement
-    # an abstract class for FeedsResetManager and AddressesResetManager
+    # an abstract class for UserCollectionResetController and AddressesResetManager
     # Implement __hash__ and __eq__ methods for Address class (so you can hold it in set of unique objects)
-    # TODO Implement methods to enable using 'in' keyword, and to be iterable - FeedsResetManager and AddressesResetManager classes 
+    # TODO Implement methods to enable using 'in' keyword, and to be iterable - UserCollectionResetController and AddressesResetManager classes
     @property
-    def addresses(self) -> Tuple[Address, ...] | None:
+    def addresses(self) -> UserCollectionResetController | None:
         """Address property getter.
         Gets the existing addresses for this user.
 
         Returns:
-            Tuple[Address, ...] | None: A tuple of Address objects, where this user is connected,
-                                        if exist one at least. otherwise returns None.
+            UserCollectionResetController | None: An object contains an set of user addresses,
+            if he has any address.
+            None otherwise.
         """
+        if not self._addresses:
+            if db_response := sqlQueries.select(
+                cols=(
+                    config.USERS_DATA_COLUMNS.phone_number,
+                    config.USERS_DATA_COLUMNS.whatsapp_number,
+                    config.USERS_DATA_COLUMNS.email,
+                ),
+                table=config.DATABASE_TABLES_NAMES.users_table,
+                condition_expr=f"{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}",
+            ):
+                data = (AddressFactory.create(address[0]) for address in db_response)
+                self._addresses = UserCollectionResetController(*data)
+        return self._addresses
 
-        with MySQLCursorCM() as cursor:
-            cursor.execute(
-                f"""
-                SELECT {config.USERS_DATA_COLUMNS.phone_number},
-                       {config.USERS_DATA_COLUMNS.whatsapp_number},
-                       {config.USERS_DATA_COLUMNS.email}
-                FROM {config.DATABASE_TABLES_NAMES.users_table}
-                WHERE {config.USERS_DATA_COLUMNS.id} = '{self.id}'
-                """
-            )
-            addresses = cursor.fetchone()
-            return (
-                tuple(
-                    AddressFactory.create(address) for address in addresses if address
-                )
-                if addresses
-                else None
-            )
-
-    def add_addresses(self, *new_addresses: Tuple[Address, ...]) -> None:
-        """Adds a new address for this user.
+    @addresses.setter
+    def addresses(self, addresses: UserCollectionResetController) -> None:
+        """Addresses property setter.
+        Resets the addresses of the user, where he subscribed.
 
         Args:
-            new_addresses (Tuple[Address, ...]): A tuple of Address objects to add to this user.
+            addresses (UserCollectionResetController): An object contains an set of user addresses
+            to reset by them.
         """
-        with MySQLCursorCM() as cursor:
-            for address in new_addresses:
-                cursor.execute(
-                    f"""
-                    INSERT INTO {config.DATABASE_TABLES_NAMES.users_table} 
-                        ({address.db_index(address)})
-                    VALUES ({address})
-                    WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
-                    """
-                )
+        if self._addresses.last_operation == ObjectResetOperationClassifier.ADDITION:
+            self._add_addresses(addresses)
+        elif (
+            self._addresses.last_operation == ObjectResetOperationClassifier.SUBTRACTION
+        ):
+            self._delete_addresses(addresses)
+        else:
+            self._delete_addresses(self.addresses)
+            self._add_addresses(addresses)
+            self._feeds = addresses
 
-    def delete_addresses(self, *addresses: Tuple[Address, ...]) -> None:
+    def _add_addresses(self, new_addresses: UserCollectionResetController) -> None:
+        """Adds a new address into this user.
+
+        Args:
+            new_addresses (UserCollectionResetController): An object contains an set of user addresses.
+        """
+        # TODO maybe there is any method improve it by avoiding for loop?
+        for address in new_addresses.collection_set:
+            sqlQueries.update(
+                table=config.DATABASE_TABLES_NAMES.users_table,
+                updates_dict={address.db_index: address.address},
+                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
+            )
+
+    def _delete_addresses(self, addresses: UserCollectionResetController) -> None:
         """Deletes all addresses from the database.
 
         Args:
-            addresses (Tuple[Address, ...]): A tuple of address objects that candidate to deletion.
-
-        Raises:
-            ValueError: If any of the addresses does not exist,
-                        or if we have only one address right now.
+            addresses (UserCollectionResetController): An object contains an
+            set of user addresses to be deleted.
         """
-        if any(address not in self.addresses for address in addresses):
-            raise ValueError("One or more addresses does not exist!")
-        with MySQLCursorCM() as cursor:
-            for address in addresses:
-                cursor.execute(
-                    # TODO correct statement for delete one column in this case
-                    # is to UPDATE tha desired field to NULL or None of python.
-                    f"""
-                    DELETE {address.db_index(address.address)} 
-                    FROM {config.DATABASE_TABLES_NAMES.users_table}
-                    WHERE {config.USERS_DATA_COLUMNS.id} = {self.id}
-                    """
-                )
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.users_table,
+            updates_dict={address.db_index: None for address in addresses}
+            condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
+        )
 
-    def is_registered_at(self, *addresses: Tuple[Address, ...]) -> bool:
+    def is_registered_at(self, addresses: UserCollectionResetController) -> bool:
         """Checks if this user is registered at a given addresses.
 
         Args:
-            addresses (Tuple[Address, ...]): A tuple of address objects to check if the user is registered in.
-
+            addresses (UserCollectionResetController): An object contains an set of user
         Returns:
             bool: True if the user is registered at the given addresses, False otherwise.
         """
-        return all(address in self.addresses for address in addresses)
+        return addresses == self._addresses
 
     @property
     def username(self) -> str:

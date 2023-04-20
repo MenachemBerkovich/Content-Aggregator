@@ -19,7 +19,8 @@ def select(
 
     Args:
         table (str): The name of the table(s) to select from.
-        cols (str | Iterable[str], optional): The name(s) of the specified columns to select them. Defaults to "*".
+        cols (str | Iterable[str], optional): The name(s) of the specified columns to select them.
+                                              Defaults to "*".
         condition_expr (str | None, optional): Condition to select by,
                                           Defaults to None
                                           [has no effect if it's not required by the caller].
@@ -44,7 +45,7 @@ def insert(
     cols: str | Iterable[str],
     condition_expr: str | None = None,
     values: Any | Iterable[Any],
-) -> None:
+) -> int | None:
     """Insert a new data to the desired location in the database.
 
     Args:
@@ -52,6 +53,8 @@ def insert(
         cols (str | Iterable[str]): The name(s) of the specified column(s) to be inserted into.
         values (Any | Iterable[Any]): The new value(s) to be inserted.
         condition_expr (str | None, optional): Condition on the insertion. Defaults to None.
+    Returns:
+        int | None: The row id of the inserted value, Or None it is unavailable.
     """
     values_expr_preparing = "%s"
     if isinstance(cols, Iterable):
@@ -62,6 +65,7 @@ def insert(
         query_str += f" WHERE {condition_expr}"
     with MySQLCursorCM as cursor:
         cursor.execute(query_str, values)
+        return cursor.lastrowid
 
 
 def update(
@@ -83,15 +87,16 @@ def update(
 
 
 def delete(*, table: str, condition_expr: str | None = None) -> int | None:
-    # TODO documentation
-    """_summary_
+    """Delete rows from the given table, when condition is True (if condition_expr is not None).
 
     Args:
-        table (str): _description_
-        condition_expr (str | None, optional): _description_. Defaults to None.
+        table (str): The table to delete from.
+        condition_expr (str | None, optional): Condition - which rows will be deleted.
+                                               Defaults to None.
 
     Returns:
-        int | None: _description_
+        int | None: The number of the rows affected by the delete operation,
+                    or None this data is not available.
     """
     query_str = f"DELETE FROM {table}"
     if condition_expr:
@@ -99,4 +104,4 @@ def delete(*, table: str, condition_expr: str | None = None) -> int | None:
     with MySQLCursorCM as cursor:
         cursor.execute(query_str)
         cursor.fetchone()
-        return cursor.rowcount()
+        return cursor.rowcount

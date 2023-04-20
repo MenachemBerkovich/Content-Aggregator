@@ -10,7 +10,7 @@ from typing import Tuple, List, Callable
 import pwdHandler
 
 import config
-from sqlManagement.databaseCursor import MySQLCursorCM
+from sqlManagement import sqlQueries
 from user.userInterface import User
 import exceptions
 
@@ -246,23 +246,19 @@ def check_username_existence(
             UserNotFound in the opposite case.
             otherwise returns None.
     """
-    with MySQLCursorCM() as cursor:
-        cursor.execute(
-            f"""
-                       SELECT {config.USERS_DATA_COLUMNS.username}
-                       FROM {config.DATABASE_TABLES_NAMES.users_table}
-                       WHERE {config.USERS_DATA_COLUMNS.username} = %s
-                       """,
-            (username,),
-        )
-        results = cursor.fetchone()
+    db_response = sqlQueries.select(
+        cols=config.USERS_DATA_COLUMNS.username,
+        table=config.DATABASE_TABLES_NAMES.users_table,
+        condition_expr=f"{config.USERS_DATA_COLUMNS.username} = {username}",
+        desired_rows_num=1,
+    )
     return (
         exceptions.UserNameAlreadyExists(
             "Sorry, this username is already taken. Please choose another name."
         )
-        if results and not required_val
+        if db_response[0] and not required_val
         else exceptions.UserNotFound("Username does not exist.")
-        if not results and required_val
+        if not db_response[0] and required_val
         else None
     )
 
@@ -321,22 +317,23 @@ def check_credentials_compatibility(
             PasswordNotUpdated if password match to the username, but it should be updated.
             otherwise int - the User id for this account.
     """
-    with MySQLCursorCM() as cursor:
-        cursor.execute(
-            f"""
-                       SELECT {config.USERS_DATA_COLUMNS.password},
-                       {config.USERS_DATA_COLUMNS.last_password_change_date},
-                       {config.USERS_DATA_COLUMNS.id}
-                       FROM {config.DATABASE_TABLES_NAMES.users_table}
-                       WHERE {config.USERS_DATA_COLUMNS.username} = '{username}'
-                       """
-        )
-        result = cursor.fetchone()
-        is_match_flag = pwdHandler.is_same_password(password, result[0])
+    db_response = sqlQueries.select(
+        cols=(
+            config.USERS_DATA_COLUMNS.password,
+            config.USERS_DATA_COLUMNS.last_password_change_date,
+            config.USERS_DATA_COLUMNS.id,
+        ),
+        table=config.DATABASE_TABLES_NAMES.users_table,
+        condition_expr=f"{config.USERS_DATA_COLUMNS.username} = '{username}'",
+    )
+
+    is_match_flag = pwdHandler.is_same_password(password, db_response[0][0])
     return (
-        exceptions.PasswordNotUpdated("A new password must be chosen", User(result[2]))
-        if is_match_flag and has_been_a_year(result[1])
-        else result[2]
+        exceptions.PasswordNotUpdated(
+            "A new password must be chosen", User(db_response[0][2])
+        )
+        if is_match_flag and has_been_a_year(db_response[0][1])
+        else db_response[0][2]
         if is_match_flag
         else exceptions.IncorrectPassword("The password is incorrect. Try again.")
     )
