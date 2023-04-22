@@ -7,7 +7,7 @@ and still allow operations like +=, and -= in a protected way (with updates to t
 from __future__ import annotations
 from functools import total_ordering
 
-from common import ObjectResetOperationClassifier
+from contentAggregator.common import ObjectResetOperationClassifier
 
 
 @total_ordering

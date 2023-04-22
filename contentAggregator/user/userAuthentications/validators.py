@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 from typing import Tuple, List, Callable
 
 
-import pwdHandler
+from contentAggregator.user.userAuthentications import pwdHandler
 
-import config
-from sqlManagement import sqlQueries
-from user.userInterface import User
-import exceptions
+from contentAggregator import config
+from contentAggregator.sqlManagement import sqlQueries
+from contentAggregator.user import newUserInterface
+from contentAggregator import exceptions
 
 
 # bad usernames [easy to guess] that are not allowed in the system.
@@ -330,7 +330,7 @@ def check_credentials_compatibility(
     is_match_flag = pwdHandler.is_same_password(password, db_response[0][0])
     return (
         exceptions.PasswordNotUpdated(
-            "A new password must be chosen", User(db_response[0][2])
+            "A new password must be chosen", newUserInterface.User(db_response[0][2])
         )
         if is_match_flag and has_been_a_year(db_response[0][1])
         else db_response[0][2]

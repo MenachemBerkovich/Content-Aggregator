@@ -2,7 +2,7 @@
 """
 
 
-from user.userInterface import User
+from contentAggregator.user import newUserInterface
 
 
 class InvalidUserName(Exception):
@@ -45,7 +45,7 @@ class UserNameAlreadyExists(Exception):
 
 class PasswordNotUpdated(Exception):
     """Exception for password not updated: Last modified more than a year ago"""
-    def __init__(self, message: str, user: User) -> None:
+    def __init__(self, message: str, user: newUserInterface.User) -> None:
         super().__init__(message)
         self.user = user
         self.criticality: int = 6

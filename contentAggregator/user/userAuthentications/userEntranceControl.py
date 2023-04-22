@@ -1,21 +1,20 @@
 """Users entrance control - Enables to initialize a user sessions,
 by login method or signup method. Including username and password verification.
 """
-from typing import Tuple, List
+from typing import List
 from datetime import datetime
 
-import pwdHandler
+from contentAggregator.user.newUserInterface import User
+from contentAggregator import config
+from contentAggregator.sqlManagement import sqlQueries
 
-
-from validators import (
+from contentAggregator.user.userAuthentications import pwdHandler
+from contentAggregator.user.userAuthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     PASSWORD_CHECKERS,
     check_username_existence,
     check_credentials_compatibility,
 )
-import config
-from sqlManagement import sqlQueries
-from user.userInterface import User
 
 
 def _get_credentials_validation_report(

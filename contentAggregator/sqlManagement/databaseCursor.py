@@ -7,7 +7,7 @@ from mysql.connector.errors import Error, InternalError
 from mysql.connector.connection import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
 
-import config
+from contentAggregator import config
 
 
 class MySQLCursorCM:

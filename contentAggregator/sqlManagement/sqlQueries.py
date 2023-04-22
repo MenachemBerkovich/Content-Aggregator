@@ -4,7 +4,7 @@ Functions collection for some custom SQL queries required for the system.
 
 from typing import List, Tuple, Iterable, Any, Dict
 
-from databaseCursor import MySQLCursorCM
+from .databaseCursor import MySQLCursorCM
 
 
 def select(

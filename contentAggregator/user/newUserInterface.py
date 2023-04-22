@@ -1,15 +1,16 @@
 """Implementation for the User interface in the Content Aggregator system.
 """
 
+
 from datetime import datetime
 
 
-from sqlManagement import sqlQueries
-from feeds.feed import FeedFactory
-from common import ObjectResetOperationClassifier
-from .. import config
-from .userAuthentications import pwdHandler
-from .userAuthentications.validators import (
+from contentAggregator.sqlManagement import sqlQueries
+from contentAggregator.feeds.feed import FeedFactory
+from contentAggregator.common import ObjectResetOperationClassifier
+from contentAggregator import config
+from contentAggregator.user.userAuthentications import pwdHandler
+from contentAggregator.user.userAuthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,

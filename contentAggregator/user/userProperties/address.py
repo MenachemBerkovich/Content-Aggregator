@@ -4,7 +4,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 
-import config
+from contentAggregator import config
 
 class AddressDataManager(ABC):
     """An abstract class for an digital address like Email, Phone or Whatsapp"""

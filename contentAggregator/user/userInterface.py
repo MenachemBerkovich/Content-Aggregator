@@ -5,17 +5,17 @@ from typing import Tuple
 from datetime import datetime
 
 
-import config
-from sqlManagement.databaseCursor import MySQLCursorCM
-from userAuthentications import pwdHandler
-from userAuthentications.validators import (
+from contentAggregator import config
+from contentAggregator.sqlManagement.databaseCursor import MySQLCursorCM
+from contentAggregator.user.userAuthentications import pwdHandler
+from contentAggregator.user.userAuthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from feeds.feed import Feed, FeedFactory
-from userProperties.address import Address, AddressFactory
-from userProperties.time import Time
+from contentAggregator.feeds.feed import Feed, FeedFactory
+from contentAggregator.user.userProperties.address import Address, AddressFactory
+from contentAggregator.user.userProperties.time import Time
 
 
 class User:

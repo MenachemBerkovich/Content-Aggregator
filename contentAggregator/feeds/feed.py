@@ -7,9 +7,10 @@ import contextlib
 
 import feedparser
 
-import config
-from sqlManagement import sqlQueries
-from feeds.rating import FeedRatingResetManager, ObjectResetOperationClassifier
+from contentAggregator import config
+from contentAggregator.sqlManagement import sqlQueries
+from contentAggregator.feeds.rating import FeedRatingResetManager
+from contentAggregator.common import ObjectResetOperationClassifier
 
 
 class FeedDataManager(ABC):
