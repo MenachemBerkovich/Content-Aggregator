@@ -4,7 +4,7 @@ by login method or signup method. Including username and password verification.
 from typing import List
 from datetime import datetime
 
-from contentAggregator.user.newUserInterface import User
+from contentAggregator.user.userInterface import User
 from contentAggregator import config
 from contentAggregator.sqlManagement import sqlQueries
 

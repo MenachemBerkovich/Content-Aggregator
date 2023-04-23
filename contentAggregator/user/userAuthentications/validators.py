@@ -11,7 +11,7 @@ from contentAggregator.user.userAuthentications import pwdHandler
 
 from contentAggregator import config
 from contentAggregator.sqlManagement import sqlQueries
-from contentAggregator.user import newUserInterface
+from contentAggregator.user import userInterface
 from contentAggregator import exceptions
 
 
@@ -249,7 +249,7 @@ def check_username_existence(
     db_response = sqlQueries.select(
         cols=config.USERS_DATA_COLUMNS.username,
         table=config.DATABASE_TABLES_NAMES.users_table,
-        condition_expr=f"{config.USERS_DATA_COLUMNS.username} = {username}",
+        condition_expr=f"{config.USERS_DATA_COLUMNS.username} = '{username}'",
         desired_rows_num=1,
     )
     return (
@@ -330,7 +330,7 @@ def check_credentials_compatibility(
     is_match_flag = pwdHandler.is_same_password(password, db_response[0][0])
     return (
         exceptions.PasswordNotUpdated(
-            "A new password must be chosen", newUserInterface.User(db_response[0][2])
+            "A new password must be chosen", userInterface.User(db_response[0][2])
         )
         if is_match_flag and has_been_a_year(db_response[0][1])
         else db_response[0][2]

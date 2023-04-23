@@ -1,8 +1,10 @@
 """System-specific exceptions
 """
 
-
-from contentAggregator.user import newUserInterface
+from __future__ import annotations
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from contentAggregator.user.userInterface import User
 
 
 class InvalidUserName(Exception):
@@ -45,7 +47,7 @@ class UserNameAlreadyExists(Exception):
 
 class PasswordNotUpdated(Exception):
     """Exception for password not updated: Last modified more than a year ago"""
-    def __init__(self, message: str, user: newUserInterface.User) -> None:
+    def __init__(self, message: str, user: User) -> None:
         super().__init__(message)
         self.user = user
         self.criticality: int = 6

@@ -3,16 +3,16 @@
 from __future__ import annotations
 from typing import Tuple, Set
 
-from common import ObjectResetOperationClassifier
-from feeds.feed import FeedDataManager
-from address import AddressDataManager
+from contentAggregator.common import ObjectResetOperationClassifier
+from contentAggregator.feeds.feed import FeedDataManager
+from contentAggregator.user.userProperties.address import Address
 
 
 class UserCollectionResetController:
     """Controller for resets of user collections
     """
-    def __init__(self, *collection: Tuple[FeedDataManager | AddressDataManager, ...]):
-        self.collection_set: Set[FeedDataManager | AddressDataManager] = set(collection)
+    def __init__(self, *collection: Tuple[FeedDataManager | Address, ...]):
+        self.collection_set: Set[FeedDataManager | Address] = set(collection)
         self._last_operation: ObjectResetOperationClassifier | None= None
 
     def __repr__(self) -> str:

@@ -2,7 +2,7 @@
 Functions collection for some custom SQL queries required for the system.
 """
 
-from typing import List, Tuple, Iterable, Any, Dict
+from typing import List, Tuple, Iterable, Any, Dict, Union
 
 from .databaseCursor import MySQLCursorCM
 
@@ -29,12 +29,13 @@ def select(
     Returns:
         List[Tuple[str, ...]]: A list with the desired rows as tuples.
     """
-    if isinstance(cols, Iterable):
+    if isinstance(cols, Union[Tuple, List]):
         cols = ", ".join(cols)
     query_str = f"SELECT {cols} FROM {table}"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
-    with MySQLCursorCM as cursor:
+        print(query_str)
+    with MySQLCursorCM() as cursor:
         cursor.execute(query_str)
         return cursor.fetchmany(size=desired_rows_num) if desired_rows_num else cursor.fetchall()
 
