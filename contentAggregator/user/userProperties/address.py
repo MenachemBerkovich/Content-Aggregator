@@ -24,6 +24,16 @@ class Address(ABC):
         return hash(self.address)
 
     @abstractmethod
+    def is_valid(self) -> bool:
+        """Check if the address is a valid address by it's type,
+        performed by overrides.
+
+        Returns:
+            bool: True if the address is valid, False otherwise.
+        """
+        pass
+
+    @abstractmethod
     def is_verified(self) -> bool:
         """Checks if self.address is verified by verification session.
 
@@ -32,7 +42,7 @@ class Address(ABC):
         """
         pass
 
-class NumberAddress(Address, ABC):
+class NumberAddress(Address):
     """A middle class bet ween Address and it's fool implementors.
     Intended for numbers subscriptions.
     can't be instantiated directly."""
@@ -41,20 +51,18 @@ class NumberAddress(Address, ABC):
             raise TypeError(f"only children of '{cls.__name__}' may be instantiated")
         return object.__new__(cls)
 
-    @staticmethod
-    def is_valid(number: str) -> bool:
-        """Check if a phone number is a valid phone number.
-
-        Args:
-            phone_number (str): The phone number to check.
+    def is_valid(self) -> bool:
+        """Check if a self.address is a valid phone number.
 
         Returns:
             bool: True if the phone number is valid, False otherwise.
         """
-        number_obj = phonenumbers.parse(number)
+        number_obj = phonenumbers.parse(self.address)
         return phonenumbers.is_valid_number(number_obj)
 
-    @abstractmethod
+    # Undecorated as abstractmethod, because has no effect 
+    # [this class can not inherit from ABC only, nust be inherited from Address also]
+    # this why we need the __new__ speciel method to prevent directly instantiating.
     def is_verified(self) -> bool:
         """Checks if self.address is verified by verification session.
 
@@ -66,22 +74,16 @@ class NumberAddress(Address, ABC):
 class WhatsAppAddress(NumberAddress):
     """Class for an whatsapp number"""
     def __init__(self, whatsapp_number: str):
-        if not WhatsAppAddress.is_valid(whatsapp_number):
-            raise ValueError("Invalid whatsapp number")
         super().__init__(whatsapp_number)
         self.db_idx = config.USERS_DATA_COLUMNS.whatsapp_number
 
-    @staticmethod
-    def is_valid(number: str) -> bool:
-        """Check if a number is a valid and registered whatsapp number.
-
-        Args:
-            number (str): The whatsapp number to check.
+    def is_valid(self) -> bool:
+        """Check if a number is a valid and if it is a registered whatsapp number.
 
         Returns:
             bool: True if the whatsapp number is valid, False otherwise.
         """
-        return NumberAddress.is_valid(number) and "a"!="b" #TODO correct second condition for whatsapp account axistance.
+        return super().is_valid() and "a"!="b" #TODO correct second condition for whatsapp account axistance.
 
     def is_verified(self) -> bool:
         return None
@@ -89,22 +91,16 @@ class WhatsAppAddress(NumberAddress):
 class PhoneAddress(NumberAddress):
     """Class for an "phone addresses", used for kosher devices [by voice calls]"""
     def __init__(self, phone_number: str):
-        if not PhoneAddress.is_valid(phone_number):
-            raise ValueError("Invalid phone number")
         super().__init__(phone_number)
         self.db_idx = config.USERS_DATA_COLUMNS.phone_number
 
-    @staticmethod
-    def is_valid(number: str) -> bool:
+    def is_valid(self) -> bool:
         """Check if a number is a valid and can receive voice calls.
-
-        Args:
-            number (str): The number to check.
 
         Returns:
             bool: True if the number is valid by listed conditions, False otherwise.
         """
-        return NumberAddress.is_valid(number) and "a"!="b" #TODO correct second condition for ability receive voice calls.
+        return super().is_valid() and "a"!="b" #TODO correct second condition for ability receive voice calls.
 
 class SMSAddress(NumberAddress):
     """class for SMS addresses  - Hopefully it will be developed later"""
@@ -120,8 +116,7 @@ class EmailAddress(Address):
         super().__init__(email)
         self.db_idx = config.USERS_DATA_COLUMNS.email
 
-    @staticmethod
-    def is_valid(address: str) -> bool:
+    def is_valid(self) -> bool:
         pass
 
     def is_verified(self) -> bool:
@@ -131,13 +126,21 @@ class EmailAddress(Address):
 class AddressFactory:
     """Factory for creating address objects from an address string"""
     @staticmethod
-    def create(address: str) -> Address:
+    def create(db_idx: str, address: str) -> Address:
         """Creates a new address.
 
         Args:
+            db_idx (str): The index of this address to users table.
             address (str): An address of any type that inherits from the Address abstract class.
 
         Returns:
             Address: A custom address object.
         """
-        pass
+        match db_idx:
+            case config.USERS_DATA_COLUMNS.whatsapp_number:
+                return WhatsAppAddress(address)
+            case config.USERS_DATA_COLUMNS.phone_number:
+                return PhoneAddress(address)
+            case config.USERS_DATA_COLUMNS.email:
+                return EmailAddress(address)
+            

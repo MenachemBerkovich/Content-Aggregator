@@ -148,19 +148,23 @@ class User:
             None otherwise.
         """
         if not self._addresses:
+            desired_cols = (
+                config.USERS_DATA_COLUMNS.phone_number,
+                config.USERS_DATA_COLUMNS.whatsapp_number,
+                config.USERS_DATA_COLUMNS.email,
+            )
             if any(
                 db_response := sqlQueries.select(
-                    cols=(
-                        config.USERS_DATA_COLUMNS.phone_number,
-                        config.USERS_DATA_COLUMNS.whatsapp_number,
-                        config.USERS_DATA_COLUMNS.email,
-                    ),
+                    cols=desired_cols,
                     table=config.DATABASE_TABLES_NAMES.users_table,
                     condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
                 )[0]
             ):
+                response_info = zip(desired_cols, (col[0] for col in db_response))
                 data = tuple(
-                    AddressFactory.create(address[0]) for address in db_response
+                    AddressFactory.create(address[0], address[1])
+                    for address in response_info
+                    if address[1]
                 )
                 self._addresses = UserCollectionResetController(*data)
         return self._addresses
@@ -191,13 +195,14 @@ class User:
         Args:
             new_addresses (UserCollectionResetController): An object contains an set of user addresses.
         """
+        if new_addresses:
         # TODO maybe there is any method improve it by avoiding for loop?
-        for address in new_addresses.collection_set:
-            sqlQueries.update(
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                updates_dict={address.db_index: address.address},
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
-            )
+            for address in new_addresses.collection_set:
+                sqlQueries.update(
+                    table=config.DATABASE_TABLES_NAMES.users_table,
+                    updates_dict={address.db_index: address.address},
+                    condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
+                )
 
     def _delete_addresses(self, addresses: UserCollectionResetController) -> None:
         """Deletes all addresses from the database.
@@ -206,11 +211,12 @@ class User:
             addresses (UserCollectionResetController): An object contains an
             set of user addresses to be deleted.
         """
-        sqlQueries.update(
-            table=config.DATABASE_TABLES_NAMES.users_table,
-            updates_dict={address.db_index: None for address in addresses},
-            condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
-        )
+        if addresses:
+            sqlQueries.update(
+                table=config.DATABASE_TABLES_NAMES.users_table,
+                updates_dict={address.db_index: None for address in addresses},
+                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
+            )
 
     def is_registered_at(self, addresses: UserCollectionResetController) -> bool:
         """Checks if this user is registered at a given addresses.
