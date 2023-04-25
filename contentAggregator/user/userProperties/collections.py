@@ -30,13 +30,13 @@ class UserCollectionResetController:
 
     def __iadd__(self, other: UserCollectionResetController):
         if any(item in self.collection_set for item in other.collection_set):
-            raise ValueError(f"One or more {other.__class__.__name__} already exists")
+            raise ValueError("One or more of this collection already exists")
         self.collection_set.update(other.collection_set)
         self._last_operation = ObjectResetOperationClassifier.ADDITION
 
     def __isub__(self, other: UserCollectionResetController):
         if any(item not in self.collection_set for item in other.collection_set):
-            raise KeyError(f"One or more {other.__class__.__name__} does not exist!")
+            raise KeyError("One or more of this collection does not exist!")
         for elem in other.collection_set:
             self.collection_set.remove(elem)
         self._last_operation = ObjectResetOperationClassifier.SUBTRACTION

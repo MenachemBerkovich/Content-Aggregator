@@ -51,7 +51,7 @@ class NumberAddress(Address):
     can't be instantiated directly."""
 
     def __new__(cls, *args, **kwargs):
-        if cls is Address:
+        if cls is NumberAddress:
             raise TypeError(f"only children of '{cls.__name__}' may be instantiated")
         return object.__new__(cls)
 

@@ -132,10 +132,6 @@ class User:
         """
         return self.feeds == feeds
 
-    # TODO continue embedding INTERFACE method like above (in feeds), and implement custom class
-    # for this in collections.py module. consider to implement
-    # an abstract class for UserCollectionResetController and AddressesResetManager
-    # Implement __hash__ and __eq__ methods for Address class (so you can hold it in set of unique objects)
     # TODO Implement methods to enable using 'in' keyword, and to be iterable - UserCollectionResetController and AddressesResetManager classes
     @property
     def addresses(self) -> UserCollectionResetController | None:

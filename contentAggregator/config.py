@@ -122,4 +122,4 @@ SUBSCRIPTIONS_DATA_COLUMNS = SubscriptionsDataColumns()
 
 PASSWORD_ENCODING_METHOD: str | None = "utf-8"
 
-RAPID_API_KEY: str | None = "8404d64baamshe3d9f23bc85e3b9p136946jsnaef0a350665a"
+RAPID_API_KEY: str | None = None
