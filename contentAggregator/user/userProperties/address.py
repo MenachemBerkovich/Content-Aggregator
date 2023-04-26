@@ -18,7 +18,7 @@ class Address(ABC):
     def __init__(
         self,
         address: str | phonenumbers.PhoneNumber,
-        is_valid_flag: bool | None = None,
+        is_valid_flag: bool = False,
         is_verified_flag: bool | None = None,
     ) -> None:
         self.address = address
@@ -47,12 +47,15 @@ class Address(ABC):
         pass
 
     @abstractmethod
-    def verify(self) -> bool:
+    def verify(self) -> None:
+        """Verifies this address, by verification session with self.address
+        """
         pass
-    
+
     @abstractmethod
     def send_message(self, message: str) -> None:
         pass
+
 
 class NumberAddress(Address):
     """A middle class bet ween Address and it's fool implementors.
@@ -67,7 +70,7 @@ class NumberAddress(Address):
     def __init__(
         self,
         phone_number: str,
-        is_valid_flag: bool | None = None,
+        is_valid_flag: bool = False,
         is_verified_flag: bool | None = None,
     ):
         number_obj: phonenumbers.PhoneNumber = phonenumbers.parse(phone_number)
@@ -79,6 +82,8 @@ class NumberAddress(Address):
         Returns:
             bool: True if the phone number is valid, False otherwise.
         """
+        # TODO after it will be enabled by netfree consider using phonenumbervalidatefree.p.rapidapi.com
+        # it giving 500 requests / month.
         response = webRequests.get_response(
             method="get",
             url=config.VERIPHONE_VALIDATOR_URL,
@@ -100,7 +105,7 @@ class WhatsAppAddress(NumberAddress):
     def __init__(
         self,
         whatsapp_number: str,
-        is_valid_flag: bool | None = None,
+        is_valid_flag: bool = False,
         is_verified_flag: bool | None = None,
     ):
         super().__init__(whatsapp_number, is_valid_flag, is_verified_flag)
@@ -112,6 +117,8 @@ class WhatsAppAddress(NumberAddress):
         Returns:
             bool: True if the whatsapp number is valid, False otherwise.
         """
+        # TODO after it will be enabled by netfree consider using of Whatsapp Validator Fast Rapidapi,
+        # TODO https://rapidapi.com/6782689498/api/whatsapp-validator-fast/pricing which is giving 50 requests per day for free
         response = webRequests.get_response(
             method="get",
             url=config.WHATSAPP_EXISTENCE_CHECKER_URL_PREFIX
@@ -125,9 +132,11 @@ class WhatsAppAddress(NumberAddress):
             "response", None
         )
 
-    def verify(self) -> bool:
-        pass #TODO
-    
+    def verify(self) -> None:
+        """Verifies this whatsapp number, by verification session with self.address.
+        """
+        pass  # TODO
+
     def send_message(self, message: str) -> None:
         pass
 
@@ -138,15 +147,15 @@ class PhoneAddress(NumberAddress):
     def __init__(
         self,
         phone_number: str,
-        is_valid_flag: bool | None = None,
+        is_valid_flag: bool = False,
         is_verified_flag: bool | None = None,
     ):
         super().__init__(phone_number, is_valid_flag, is_verified_flag)
         self.db_idx = config.USERS_DATA_COLUMNS.phone_number
 
     def verify(self) -> bool:
-        pass #TODO
-    
+        pass  # TODO
+
     def send_message(self, message: str) -> None:
         pass
 
@@ -167,17 +176,31 @@ class EmailAddress(Address):
     def __init__(
         self,
         email: str,
-        is_valid_flag: bool | None = None,
+        is_valid_flag: bool = False,
         is_verified_flag: bool | None = None,
     ):
         super().__init__(email, is_valid_flag, is_verified_flag)
         self.db_idx = config.USERS_DATA_COLUMNS.email
 
     def _is_valid(self) -> bool:
-        pass#TODO: check it for email address
+        """Check if e-mail domain is valid, or a disposable/temporary address.
+
+        Returns:
+            bool: True if the email is valid, False otherwise.
+        """
+        response = webRequests.get_response(
+            method="get",
+            url=config.EMAIL_VERIFY_URL,
+            headers=config.create_rapidAPI_request_headers(
+                config.EMAIL_VERIFY_RAPID_NAME
+            ),
+            params={"domain": self.address},
+        )
+        data = json.loads(response)
+        return data.get('valid', False) and not data.get('disposable', True)
 
     def verify(self) -> bool:
-        pass #TODO
+        pass  # TODO
 
     def send_message(self, message: str) -> None:
         pass

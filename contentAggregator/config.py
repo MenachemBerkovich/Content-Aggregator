@@ -146,6 +146,8 @@ VERIPHONE_RAPID_NAME: str = "veriphone"
 VERIPHONE_VALIDATOR_URL: str = (
     f"{HTTPS_PREFIX+VERIPHONE_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/verify"
 )
+EMAIL_VERIFY_RAPID_NAME = "mailcheck"
+EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
 
 
 def create_rapidAPI_request_headers(api_name: str) -> Dict[str, str]:
