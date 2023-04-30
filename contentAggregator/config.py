@@ -38,7 +38,6 @@ class TablesNames:
 
     users_table: str = "users_info"
     feeds_table: str = "feeds_info"
-    subscriptions_table: str = "subscriptions_info"
 
 
 DATABASE_TABLES_NAMES = TablesNames()
@@ -54,6 +53,11 @@ class UsersDataColumns:
         id (str): Name of the id's column.
         username (str): Name of usernames column.
         password (str): Name of the password hash values column.
+        last_password_change_date (str): Name column contains the date in which the last password change is made.
+        addresses (str): Name of the addresses column [contains a dict of addresses, as a json string]
+        subscriptions (str): Name of the subscriptions column [contains a list of the user subscriptions as a json string]
+        sending_schedule (str): Name of the sending_schedule column, It will contain a number of Enum class, represents if weekly or daily.
+        sending_time (str): Name of the sending_time column, It will contain the time of sending.
 
     Examples:
         >>> my_user_data_attributes = UsersDataColumns()
@@ -68,14 +72,31 @@ class UsersDataColumns:
     username: str = "username"
     password: str = "password"
     last_password_change_date: str = "last_password_change_date"
+    addresses: str = "addresses"
+    subscriptions: str = "subscriptions"
     sending_schedule: str = "sending_schedule"
     sending_time: str = "sending_time"
-    whatsapp_number: str = "whatsapp_number"
-    phone_number: str = "phone_number"
-    email: str = "email"
 
 
 USERS_DATA_COLUMNS = UsersDataColumns()
+
+@dataclass
+class AddressesKeys:
+    """The UsersDataColumns for USERS_DATA_COLUMNS modifying.
+    contains the names of columns in the user data table.
+
+    Object Attributes:
+        email (str): Key for email address inside dictionary
+        phone (str): Key for phone number inside dictionary.
+        sms (str): Key for SMS number inside dictionary.
+        whatsapp (str): Key for WhatsApp number inside dictionary.
+    """
+    email: str = "email"
+    phone: str = "phone"
+    sms: str = "sms"
+    whatsapp: str = "whatsapp"
+    
+ADDRESSES_KEYS = AddressesKeys()
 
 
 @dataclass
@@ -101,6 +122,7 @@ class FeedsDataColumns:
     id: str = "id"
     link: str = "url"
     rating: str = "rating"
+    feed_type: str = "type" #TODO new column in db
 
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
@@ -146,6 +168,10 @@ VERIPHONE_RAPID_NAME: str = "veriphone"
 VERIPHONE_VALIDATOR_URL: str = (
     f"{HTTPS_PREFIX+VERIPHONE_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/verify"
 )
+
+EMAIL_ADDRESS_PATTERN = r"""^[a-zA-Z0-9._%+-]+@
+                        (?!.*\.{2,})([a-zA-Z0-9]+([.-]?
+                        [a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"""
 EMAIL_VERIFY_RAPID_NAME = "mailcheck"
 EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
 

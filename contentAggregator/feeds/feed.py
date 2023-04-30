@@ -205,5 +205,5 @@ class FeedFactory:
     """Factory for creating a custom feed object by url parameter"""
 
     @staticmethod
-    def create(url: str) -> FeedDataManager:
+    def create(feed_id: int) -> FeedDataManager:
         pass

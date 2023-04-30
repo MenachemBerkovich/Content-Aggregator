@@ -5,6 +5,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import json
+import re
 
 import phonenumbers
 
@@ -29,7 +30,6 @@ class Address(ABC):
                 f"Invalid {cls_name} {self.address}, please enter a valid {cls_name}."
             )
 
-    # Intended: for allowing management of addresses set without multiplications.
     def __eq__(self, other: Address) -> bool:
         return self.address == other.address
 
@@ -48,8 +48,7 @@ class Address(ABC):
 
     @abstractmethod
     def verify(self) -> None:
-        """Verifies this address, by verification session with self.address
-        """
+        """Verifies this address, by verification session with self.address"""
         pass
 
     @abstractmethod
@@ -102,21 +101,14 @@ class NumberAddress(Address):
 class WhatsAppAddress(NumberAddress):
     """Class for an whatsapp number"""
 
-    def __init__(
-        self,
-        whatsapp_number: str,
-        is_valid_flag: bool = False,
-        is_verified_flag: bool | None = None,
-    ):
-        super().__init__(whatsapp_number, is_valid_flag, is_verified_flag)
-        self.db_idx = config.USERS_DATA_COLUMNS.whatsapp_number
-
     def _is_valid(self) -> bool:
         """Check if a number is a valid and if it is a registered whatsapp number.
 
         Returns:
             bool: True if the whatsapp number is valid, False otherwise.
         """
+        if not super()._is_valid():
+            return False
         # TODO after it will be enabled by netfree consider using of Whatsapp Validator Fast Rapidapi,
         # TODO https://rapidapi.com/6782689498/api/whatsapp-validator-fast/pricing which is giving 50 requests per day for free
         response = webRequests.get_response(
@@ -128,13 +120,10 @@ class WhatsAppAddress(NumberAddress):
                 config.WHATSAPP_CHECKER_RAPID_NAME
             ),
         )
-        return super()._is_valid and "not" not in json.loads(response).get(
-            "response", None
-        )
+        return "not" not in json.loads(response).get("response", None)
 
     def verify(self) -> None:
-        """Verifies this whatsapp number, by verification session with self.address.
-        """
+        """Verifies this whatsapp number, by verification session with self.address."""
         pass  # TODO
 
     def send_message(self, message: str) -> None:
@@ -143,15 +132,6 @@ class WhatsAppAddress(NumberAddress):
 
 class PhoneAddress(NumberAddress):
     """Class for a "phone addresses", used for kosher devices, for example [by voice calls]"""
-
-    def __init__(
-        self,
-        phone_number: str,
-        is_valid_flag: bool = False,
-        is_verified_flag: bool | None = None,
-    ):
-        super().__init__(phone_number, is_valid_flag, is_verified_flag)
-        self.db_idx = config.USERS_DATA_COLUMNS.phone_number
 
     def verify(self) -> bool:
         pass  # TODO
@@ -172,22 +152,15 @@ class SMSAddress(NumberAddress):
 
 class EmailAddress(Address):
     """class for an E-Mail addresses"""
-
-    def __init__(
-        self,
-        email: str,
-        is_valid_flag: bool = False,
-        is_verified_flag: bool | None = None,
-    ):
-        super().__init__(email, is_valid_flag, is_verified_flag)
-        self.db_idx = config.USERS_DATA_COLUMNS.email
-
+    
     def _is_valid(self) -> bool:
         """Check if e-mail domain is valid, or a disposable/temporary address.
 
         Returns:
             bool: True if the email is valid, False otherwise.
         """
+        if not re.match(config.EMAIL_ADDRESS_PATTERN, self.address):
+            return False
         response = webRequests.get_response(
             method="get",
             url=config.EMAIL_VERIFY_URL,
@@ -197,7 +170,7 @@ class EmailAddress(Address):
             params={"domain": self.address},
         )
         data = json.loads(response)
-        return data.get('valid', False) and not data.get('disposable', True)
+        return data.get("valid", False) and not data.get("disposable", True)
 
     def verify(self) -> bool:
         pass  # TODO
@@ -210,20 +183,22 @@ class AddressFactory:
     """Factory for creating address objects from an address string"""
 
     @staticmethod
-    def create(db_idx: str, address: str) -> Address:
+    def create(address_type: str, address: str) -> Address:
         """Creates a new trust address.
 
         Args:
-            db_idx (str): The index of this address to users table.
+            address_type (str): The type of the address.
             address (str): An address of any type that inherits from the Address abstract class.
 
         Returns:
             Address: A custom address object.
         """
-        match db_idx:
-            case config.USERS_DATA_COLUMNS.whatsapp_number:
+        match address_type:
+            case config.ADDRESSES_KEYS.whatsapp:
                 return WhatsAppAddress(address, True, True)
-            case config.USERS_DATA_COLUMNS.phone_number:
+            case config.ADDRESSES_KEYS.phone:
                 return PhoneAddress(address, True, True)
-            case config.USERS_DATA_COLUMNS.email:
+            case config.ADDRESSES_KEYS.email:
                 return EmailAddress(address, True, True)
+            # case config.ADDRESSES_KEYS.sms:
+            #     return SMSAddress(address, True, True)

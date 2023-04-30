@@ -3,7 +3,7 @@
 
 
 from datetime import datetime
-
+import json
 
 from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.feeds.feed import FeedFactory
@@ -15,9 +15,13 @@ from contentAggregator.user.userAuthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from .userProperties.address import AddressFactory
-from .userProperties.time import Time
-from .userProperties.collections import UserCollectionResetController
+from contentAggregator.user.userProperties.address import AddressFactory
+from contentAggregator.user.userProperties.time import Time
+from contentAggregator.user.userProperties.collections import (
+    UserCollectionResetController,
+    UserDictController,
+    UserSetController,
+)
 
 
 class User:
@@ -25,8 +29,8 @@ class User:
 
     def __init__(self, user_id: int) -> None:
         self._id: int = user_id
-        self._feeds: UserCollectionResetController | None = None
-        self._addresses: UserCollectionResetController | None = None
+        self._feeds: UserSetController | None = None
+        self._addresses: UserDictController | None = None
         self._username: str | None = None
         self._password: str | None = None
         self._sending_time: str | None = None
@@ -54,171 +58,121 @@ class User:
         return self._id
 
     @property
-    def feeds(self) -> UserCollectionResetController | None:
+    def feeds(self) -> UserSetController | None:
         """Feeds property getter.
         Gets all feeds where this user is subscribed to.
 
         Returns:
-            UserCollectionResetController | None: An object contains an set of user feeds,
+            UserSetController | None: An object contains an set of user feeds,
             if it has any feed,
             None otherwise.
         """
         if not self._feeds:
             if db_response := sqlQueries.select(
-                cols=config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
-                table=config.DATABASE_TABLES_NAMES.subscriptions_table,
-                condition_expr=f"{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}",
-            ):
-                data = (FeedFactory.create(feed[0]) for feed in db_response)
-                self._feeds = UserCollectionResetController(*data)
+                cols=config.USERS_DATA_COLUMNS.subscriptions,
+                table=config.DATABASE_TABLES_NAMES.users_table,
+                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
+                desired_rows_num=1,
+            )[0][0]:
+                # TODO for feed factory, we need send also the type of the feed. maybe by join query above,
+                # that will be collect information from feeds table also. (or if it will be better to know this by url it self)
+                data = (FeedFactory.create(feed) for feed in json.loads(db_response[0]))
+                self._feeds = UserSetController(*data)
         return self._feeds
 
     @feeds.setter
-    def feeds(self, feeds: UserCollectionResetController) -> None:
+    def feeds(self, feeds: UserSetController) -> None:
         """Feeds property setter.
         Resets the feed subscriptions of the user.
 
         Args:
-            feeds (UserCollectionResetController): An object contains an set of user feeds
+            feeds (UserSetController): An object contains an set of user feeds
             to reset by them.
         """
-        if self._feeds.last_operation == ObjectResetOperationClassifier.ADDITION:
-            self._add_feeds(feeds)
-        elif self._feeds.last_operation == ObjectResetOperationClassifier.SUBTRACTION:
-            self._delete_feeds(feeds)
-        else:
-            self._delete_feeds(self.feeds)
-            self._add_feeds(feeds)
-            self._feeds = feeds
+        self._feeds = feeds
+        self._update_feeds()
 
-    def _add_feeds(self, feeds: UserCollectionResetController) -> None:
-        """Subscribes the user to some new feeds.
-
-        Args:
-            feeds (UserCollectionResetController): The feeds to subscribe to.
-        """
-        sqlQueries.insert(
-            table=config.DATABASE_TABLES_NAMES.subscriptions_table,
-            cols=(
-                config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id,
-                config.SUBSCRIPTIONS_DATA_COLUMNS.user_id,
-            ),
-            values=([feed.id, self.id] for feed in feeds),
+    def _update_feeds(self) -> None:
+        """Updates the user subscriptions as required by feeds.setter (+=, -= or assignment)."""
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.users_table,
+            updates_dict={
+                config.USERS_DATA_COLUMNS.subscriptions: json.dumps(
+                    [feed.id for feed in self._feeds.collection]
+                )
+            },
+            condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
 
-    def _delete_feeds(self, feeds: UserCollectionResetController) -> None:
-        """Deletes feeds from the user subscriptions.
-
-        Args:
-            feeds (UserCollectionResetController): An object contains an set of user feeds
-            to be deleted.
-        """
-        sqlQueries.delete(
-            table=config.DATABASE_TABLES_NAMES.subscriptions_table,
-            condition_expr=f"""{config.SUBSCRIPTIONS_DATA_COLUMNS.user_id} = {self._id}
-                            AND {config.SUBSCRIPTIONS_DATA_COLUMNS.feed_id}
-                            IN ({','.join(str(feed.id) for feed in feeds.feeds_set)})""",
-        )
-
-    def is_subscribed_to(self, feeds: UserCollectionResetController) -> bool:
+    def is_subscribed_to(self, feeds: UserSetController) -> bool:
         """Checks if user is subscribed to the given feeds.
 
         Args:
-            feeds (UserCollectionResetController): An object contains an set of user feeds
+            feeds (UserSetController): An object contains an set of user feeds
             to be deleted.
 
         Returns:
-            bool: True if user is subscribed to all the given feeds, False otherwise.
+            bool: True if user is subscribed to all given feeds, False otherwise.
         """
         return self.feeds == feeds
 
     # TODO Implement methods to enable using 'in' keyword, and to be iterable - UserCollectionResetController and AddressesResetManager classes
     @property
-    def addresses(self) -> UserCollectionResetController | None:
+    def addresses(self) -> UserDictController | None:
         """Address property getter.
         Gets the existing addresses for this user.
 
         Returns:
-            UserCollectionResetController | None: An object contains an set of user addresses,
+            UserDictController | None: An object contains an set of user addresses,
             if he has any address.
             None otherwise.
         """
         if not self._addresses:
-            desired_cols = (
-                config.USERS_DATA_COLUMNS.phone_number,
-                config.USERS_DATA_COLUMNS.whatsapp_number,
-                config.USERS_DATA_COLUMNS.email,
-            )
-            if any(
-                db_response := sqlQueries.select(
-                    cols=desired_cols,
-                    table=config.DATABASE_TABLES_NAMES.users_table,
-                    condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                )[0]
-            ):
-                response_info = zip(desired_cols, (col[0] for col in db_response))
-                data = tuple(
-                    AddressFactory.create(address[0], address[1])
-                    for address in response_info
-                    if address[1]
-                )
-                self._addresses = UserCollectionResetController(*data)
+            if db_response := sqlQueries.select(
+                cols=config.USERS_DATA_COLUMNS.addresses,
+                table=config.DATABASE_TABLES_NAMES.users_table,
+                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
+                desired_rows_num=1,
+            )[0][0]:
+                response_info = json.loads(db_response[0])
+                data = {
+                    key: AddressFactory.create(key, value)
+                    for key, value in response_info.items()
+                }
+                self._addresses = UserDictController(**data)
         return self._addresses
 
     @addresses.setter
-    def addresses(self, addresses: UserCollectionResetController) -> None:
+    def addresses(self, addresses: UserDictController) -> None:
         """Addresses property setter.
         Resets the addresses of the user, where he subscribed.
 
         Args:
-            addresses (UserCollectionResetController): An object contains an set of user addresses
+            addresses (UserDictController): An object contains an dict of user addresses
             to reset by them.
         """
-        if self._addresses.last_operation == ObjectResetOperationClassifier.ADDITION:
-            self._add_addresses(addresses)
-        elif (
-            self._addresses.last_operation == ObjectResetOperationClassifier.SUBTRACTION
-        ):
-            self._delete_addresses(addresses)
-        else:
-            self._delete_addresses(self.addresses)
-            self._add_addresses(addresses)
-            self._addresses = addresses
+        self._addresses = addresses
+        self._update_addresses()
 
-    def _add_addresses(self, new_addresses: UserCollectionResetController) -> None:
-        """Adds a new address into this user.
-
-        Args:
-            new_addresses (UserCollectionResetController): An object contains an set of user addresses.
-        """
-        if new_addresses:
-        # TODO maybe there is any method improve it by avoiding for loop?
-            for address in new_addresses.collection_set:
-                sqlQueries.update(
-                    table=config.DATABASE_TABLES_NAMES.users_table,
-                    updates_dict={address.db_index: address.address},
-                    condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
+    def _update_addresses(self) -> None:
+        """Updates the user subscriptions as required by feeds.setter (+=, -= or assignment)."""
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.users_table,
+            updates_dict={
+                config.USERS_DATA_COLUMNS.addresses: json.dumps(
+                    {
+                        address_type: address.address
+                        for address_type, address in self._addresses.collection
+                    }
                 )
+            },
+        )
 
-    def _delete_addresses(self, addresses: UserCollectionResetController) -> None:
-        """Deletes all addresses from the database.
-
-        Args:
-            addresses (UserCollectionResetController): An object contains an
-            set of user addresses to be deleted.
-        """
-        if addresses:
-            sqlQueries.update(
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                updates_dict={address.db_index: None for address in addresses},
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
-            )
-
-    def is_registered_at(self, addresses: UserCollectionResetController) -> bool:
+    def is_registered_at(self, addresses: UserDictController) -> bool:
         """Checks if this user is registered at a given addresses.
 
         Args:
-            addresses (UserCollectionResetController): An object contains an set of user
+            addresses (UserDictController): An object contains an set of user addresses.
         Returns:
             bool: True if the user is registered at the given addresses, False otherwise.
         """
@@ -358,8 +312,6 @@ class User:
 
     def delete(self) -> None:
         """Deletes this user from the database."""
-        if self.feeds:
-            self._delete_feeds(self.feeds)
         sqlQueries.delete(
             table=config.DATABASE_TABLES_NAMES.users_table,
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",

@@ -11,7 +11,6 @@ from contentAggregator.user.userAuthentications import pwdHandler
 
 from contentAggregator import config
 from contentAggregator.sqlManagement import sqlQueries
-from contentAggregator.user import userInterface
 from contentAggregator import exceptions
 
 
@@ -347,3 +346,5 @@ PRELIMINARY_USERNAME_CHECKERS: Tuple[Callable[[str, str], Exception]] = (
 
 # A tuple of a function objects used for password initial validation.
 PASSWORD_CHECKERS: Tuple[Callable[[str], Exception]] = (check_password_validation,)
+
+from contentAggregator.user import userInterface
