@@ -1,13 +1,14 @@
-"""An implementation for creating and updating Address object for users.
+"""An implementation for creating Address object for users, and use it for messages sending.
 """
-# TODO loss implementation
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import json
 import re
+from typing import List
 
 import phonenumbers
+import yagmail
 
 from contentAggregator import config, webRequests
 
@@ -31,7 +32,7 @@ class Address(ABC):
             )
 
     def __eq__(self, other: Address) -> bool:
-        return self.address == other.address
+        return self.address == other.address and type(self) == type(other)
 
     def __hash__(self) -> int:
         return hash(self.address)
@@ -47,12 +48,10 @@ class Address(ABC):
         pass
 
     @abstractmethod
-    def verify(self) -> None:
-        """Verifies this address, by verification session with self.address"""
-        pass
-
-    @abstractmethod
-    def send_message(self, message: str) -> None:
+    def send_message(self, **message_params: str | List[str]) -> None:
+        """Sends messages to self.address from system address.
+        It's expected to get kwargs as parameters, each concrete method as it's requirements.
+        """
         pass
 
 
@@ -91,7 +90,7 @@ class NumberAddress(Address):
                 "phone": f"+{self.address.country_code}{self.address.national_number}"
             },
         )
-        return json.loads(response).get("phone_valid", None)
+        return json.loads(response.text).get("phone_valid", None)
 
     # Undecorated as abstractmethod, because has no effect
     # [this class can not inherit from ABC only, must be inherited from Address also]
@@ -109,34 +108,37 @@ class WhatsAppAddress(NumberAddress):
         """
         if not super()._is_valid():
             return False
-        # TODO after it will be enabled by netfree consider using of Whatsapp Validator Fast Rapidapi,
-        # TODO https://rapidapi.com/6782689498/api/whatsapp-validator-fast/pricing which is giving 50 requests per day for free
         response = webRequests.get_response(
             method="get",
-            url=config.WHATSAPP_EXISTENCE_CHECKER_URL_PREFIX
-            + str(self.address.country_code)
-            + str(self.address.national_number),
+            url=config.WHATSAPP_VALIDATOR_URL,
             headers=config.create_rapidAPI_request_headers(
-                config.WHATSAPP_CHECKER_RAPID_NAME
+                config.WHATSAPP_VALIDATOR_NAME
             ),
+            params={"phone": self.address.country_code + self.address.national_number},
         )
-        return "not" not in json.loads(response).get("response", None)
+        return json.loads(response.text).get("valid", None)
 
-    def verify(self) -> None:
-        """Verifies this whatsapp number, by verification session with self.address."""
-        pass  # TODO
+    def send_message(self, **message_params: str | List[str]) -> None:
+        """Sends a message to whatsapp number.
 
-    def send_message(self, message: str) -> None:
+        Args:
+            message_params (str): Necessary params for specific message,
+            like (content='Hey I am content aggregator...', image='url_or_file_path',
+            audio='audio_url_or_file_path', video='video_url_or_file_path')
+        """
         pass
 
 
 class PhoneAddress(NumberAddress):
     """Class for a "phone addresses", used for kosher devices, for example [by voice calls]"""
 
-    def verify(self) -> bool:
-        pass  # TODO
+    def send_message(self, **message_params: str | List[str]) -> None:
+        """Sends a voice message to the phone number.
 
-    def send_message(self, message: str) -> None:
+        Args:
+            message_params (str): Necessary params for specific message,
+            like (audio='url_or_file_path').
+        """
         pass
 
 
@@ -152,7 +154,7 @@ class SMSAddress(NumberAddress):
 
 class EmailAddress(Address):
     """class for an E-Mail addresses"""
-    
+
     def _is_valid(self) -> bool:
         """Check if e-mail domain is valid, or a disposable/temporary address.
 
@@ -169,14 +171,27 @@ class EmailAddress(Address):
             ),
             params={"domain": self.address},
         )
-        data = json.loads(response)
+        data = json.loads(response.text)
         return data.get("valid", False) and not data.get("disposable", True)
 
-    def verify(self) -> bool:
-        pass  # TODO
+    def send_message(self, **message_params: str | List[str] | List[str]) -> None:
+        """Sends a message to email address.
 
-    def send_message(self, message: str) -> None:
-        pass
+        Args:
+            message_params (str): Necessary params for specific message,
+            like (html='<p>Hey<p>', files=['img_file_path', 'img_file_path1'])
+            
+        """
+        with yagmail.SMTP(config.EMAIL_SENDER_ADDRESS) as yag:
+            yag.send(
+                to=self.address,
+                subject="Your daily mail:)",
+                contents=[message_params.get("html", None)]
+                + [
+                    yagmail.inline(file_path)
+                    for file_path in message_params.get("files", None)
+                ],
+            )
 
 
 class AddressFactory:

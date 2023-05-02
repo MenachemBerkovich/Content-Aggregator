@@ -10,7 +10,7 @@ from typing import Tuple, Set, Dict
 from abc import ABC, abstractmethod
 
 from contentAggregator.common import ObjectResetOperationClassifier
-from contentAggregator.feeds.feed import FeedDataManager
+from contentAggregator.feeds.feed import Feed
 from contentAggregator.user.userProperties.address import Address
 
 
@@ -19,8 +19,8 @@ class UserCollectionResetController(ABC):
 
     def __init__(
         self,
-        *collection_set: Tuple[FeedDataManager],
-        **collection_dict: Dict[str, Address],
+        *collection_set: Feed,
+        **collection_dict: Address,
     ):
         """Creates a new reset controller for the given collection,
         by the template function '_create_collection',
@@ -28,7 +28,7 @@ class UserCollectionResetController(ABC):
         If Feeds objects are passed as positional arguments, then a set of them
         will be created,
         If Addresses objects are passed as keyword arguments, then a dict of them will be created."""
-        self.collection: Set[FeedDataManager] | Dict[
+        self.collection: Set[Feed] | Dict[
             str, Address
         ] = self._create_collection(collection_set or collection_dict)
         self._last_operation: ObjectResetOperationClassifier | None = None
@@ -38,17 +38,17 @@ class UserCollectionResetController(ABC):
 
     @abstractmethod
     def _create_collection(
-        self, collection: Tuple[FeedDataManager] | Dict[str, Address]
-    ) -> Set[FeedDataManager] | Dict[str, Address]:
+        self, collection: Tuple[Feed] | Dict[str, Address]
+    ) -> Set[Feed] | Dict[str, Address]:
         """Template for creating a collection from the inheritors classes
         accordance to the case.
 
         Args:
-            collection (Tuple[FeedDataManager] | Dict[str, Address]):
+            collection (Tuple[Feed] | Dict[str, Address]):
                 The collection to be created.
 
         Returns:
-            Set[FeedDataManager] | Dict[str, Address]: The collection as required type.
+            Set[Feed] | Dict[str, Address]: The collection as required type.
         """
         pass
 
@@ -83,14 +83,15 @@ class UserSetController(UserCollectionResetController):
     """
 
     def _create_collection(
-        self, collection: Tuple[FeedDataManager]
-    ) -> Set[FeedDataManager]:
+        self, collection: Tuple[Feed]
+    ) -> Set[Feed]:
         return set(collection)
 
     def __isub__(self, other: UserSetController):
         super().__isub__(self)
         for elem in other.collection:
             self.collection.remove(elem)
+            
 
 
 class UserDictController(UserCollectionResetController):

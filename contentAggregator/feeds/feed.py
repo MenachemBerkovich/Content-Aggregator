@@ -2,7 +2,7 @@
 """
 
 
-from abc import ABC, abstractmethod
+from abc import ABC, abstractstaticmethod
 import contextlib
 
 import feedparser
@@ -11,9 +11,11 @@ from contentAggregator import config
 from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.feeds.rating import FeedRatingResetManager
 from contentAggregator.common import ObjectResetOperationClassifier
+from contentAggregator import webRequests
+from contentAggregator.sqlManagement import sqlQueries
 
 
-class FeedDataManager(ABC):
+class Feed(ABC):
     """Represents a feed in the system.
     An half-abstract class for all feed types.
     """
@@ -76,7 +78,7 @@ class FeedDataManager(ABC):
         Raises:
             ValueError: If url is invalid.
         """
-        if not self._is_valid_url(new_url):
+        if not self.is_valid(new_url):
             raise ValueError("Invalid url")
         self._url = new_url
         sqlQueries.update(
@@ -138,27 +140,29 @@ class FeedDataManager(ABC):
         )
         self._rating.rating = final_rating
 
-    @staticmethod
-    @abstractmethod
-    def _is_valid_url(url: str) -> bool:
+    @abstractstaticmethod
+    def is_valid(url: str) -> bool:
         """Abstract method to check if a url is valid
         depending on its type.
         """
         pass
 
+    def download(self) -> str:
+        """Downloads the feed content.
 
-class RSSFeedDataManager(FeedDataManager):
+        Returns:
+            str: Feed content.
+        """
+        return webRequests.get_response(method="get", url=self._url).text
+
+
+class RSSFeed(Feed):
     """Concrete class for RSS feeds,
-    with specific implementation for _is_valid_url function.
+    with specific implementation for is_valid function.
     """
-    def __new__(cls, feed_id: int) -> object:
-        # Intended for instance.__class__.__name__ call.
-        # To avoid print of 'DataManager' in string output.
-        # Needed in user.collections.UserCollectionResetController.__iadd__ and __isub__ methods.
-        cls.__name__ = "RSSFeed"
-        return super().__new__(cls, feed_id, (), {})
+
     @staticmethod
-    def _is_valid_url(url: str) -> bool:
+    def is_valid(url: str) -> bool:
         """static method to check whether the given url is valid for RSS feeds or not.
 
         Args:
@@ -174,20 +178,13 @@ class RSSFeedDataManager(FeedDataManager):
         return False
 
 
-class HTMLFeed(FeedDataManager):
+class HTMLFeed(Feed):
     """Concrete class for HTML feeds,
-    with specific implementation for _is_valid_url function.
+    with specific implementation for is_valid function.
     """
 
-    def __new__(cls, feed_id: int) -> object:
-        # Intended for instance.__class__.__name__ call.
-        # To avoid print of 'DataManager' in string output.
-        # Needed in user.collections.UserCollectionResetController.__iadd__ and __isub__ methods.
-        cls.__name__ = "HTMLFeed"
-        return super().__new__(cls, feed_id, (), {})
-
     @staticmethod
-    def _is_valid_url(url: str) -> bool:
+    def is_valid(url: str) -> bool:
         """static method to check whether the given url is valid for HTML feeds or not.
 
         Args:
@@ -196,14 +193,33 @@ class HTMLFeed(FeedDataManager):
         Returns:
             bool: True if the url is valid, False otherwise.
         """
-        return
-
-    # TODO implemenation
+        return (
+            webRequests.get_response(method="head", url=url).headers["content-type"]
+            == "text/html"
+        )
 
 
 class FeedFactory:
     """Factory for creating a custom feed object by url parameter"""
 
     @staticmethod
-    def create(feed_id: int) -> FeedDataManager:
-        pass
+    def create(feed_id: int) -> Feed:
+        """Creates a feed object by its type.
+
+        Args:
+            feed_id (int): The id of the feed.
+
+        Returns:
+            Feed: An Feed object matched to the feed type.
+
+        """
+        feed_type = sqlQueries.select(
+            cols=config.FEEDS_DATA_COLUMNS.feed_type,
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {feed_id}",
+        )[0][0]
+        match feed_type:
+            case config.FEED_TYPES.html:
+                return HTMLFeed(feed_id)
+            case config.FEED_TYPES.rss:
+                return RSSFeed(feed_id)

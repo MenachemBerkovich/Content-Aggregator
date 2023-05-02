@@ -7,7 +7,7 @@ from typing import Dict, Any
 import requests
 
 
-def get_response(**request_params: Dict[str, Any]) -> str:
+def get_response(**request_params: Any) -> requests.Response:
     """Gets a response from any web source by requests library.
        for a given method (get, post, etc.), url and other variables.
        
@@ -41,4 +41,4 @@ def get_response(**request_params: Dict[str, Any]) -> str:
                 print(f"status code is:{response.status_code}")
     except requests.exceptions.RequestException as exc:
         raise exc
-    return response.text
+    return response

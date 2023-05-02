@@ -112,13 +112,13 @@ class FeedsDataColumns:
 
     Examples:
         >>> my_feeds_data_attributes = FeedsDataColumns()
-        >>> my_feeds_data_attributes.links_column
+        >>> my_feeds_data_attributes.link
         url
-        >>> my_feeds_data_attributes.links_column = "link"
-        >>> my_feeds_data_attributes.links_column
+        >>> my_feeds_data_attributes.link = "link"
+        >>> my_feeds_data_attributes.link
         link
     """
-
+    
     id: str = "id"
     link: str = "url"
     rating: str = "rating"
@@ -127,54 +127,40 @@ class FeedsDataColumns:
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
 
-
 @dataclass
-class SubscriptionsDataColumns:
+class FeedTypes:
     """
-    The SubscriptionsDataColumns for SUBSCRIPTIONS_DATA_COLUMNS modifying.
-    contains the names of the columns in subscriptions data table.
+    The FeedTypes allowed in FeedsDataColumns.type column.
+    contains the names of feed types.
 
     Object Attributes:
-        id (str): Name of the subscriptions id's column.
-        user_id (str): Name of users id's column.
-        feeds_id (str): Name of feeds id's column.
-
-    Examples:
-        >>> my_subscription_data_attributes = SubscriptionsDataColumns()
-        >>> my_subscription_data_attributes.id
-        id
-        >>> my_subscription_data_attributes.user_id = "id_of_users"
-        >>> my_subscription_data_attributes.user_id
-        id_of_users
+        html (str): Name of the HTML feed type.
+        rss (str): Name of the RSS feed type.
     """
+    html: str = 'HTML Feed'
+    rss: str = 'RSS Feed'
 
-    id: str = "id"
-    user_id: str = "user_id"
-    feed_id: str = "feed_id"
-
-
-SUBSCRIPTIONS_DATA_COLUMNS = SubscriptionsDataColumns()
+FEED_TYPES = FeedTypes()
 
 PASSWORD_ENCODING_METHOD: str | None = "utf-8"
 
 RAPID_API_KEY: str | None = None
 HTTPS_PREFIX: str = "https://"
 RAPID_APIS_URL_SUFFIX: str = "p.rapidapi.com"
-WHATSAPP_CHECKER_RAPID_NAME: str = "whatsapp-checker-pro"
-WHATSAPP_EXISTENCE_CHECKER_URL_PREFIX: str = (
-    f"{HTTPS_PREFIX + WHATSAPP_CHECKER_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}"
+WHATSAPP_VALIDATOR_NAME: str = "whatsapp-validator-fast"
+WHATSAPP_VALIDATOR_URL: str = (
+    f"{HTTPS_PREFIX + WHATSAPP_VALIDATOR_NAME}.{RAPID_APIS_URL_SUFFIX}/whatsapp/valid"
 )
 VERIPHONE_RAPID_NAME: str = "veriphone"
 VERIPHONE_VALIDATOR_URL: str = (
     f"{HTTPS_PREFIX+VERIPHONE_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/verify"
 )
 
-EMAIL_ADDRESS_PATTERN = r"""^[a-zA-Z0-9._%+-]+@
-                        (?!.*\.{2,})([a-zA-Z0-9]+([.-]?
-                        [a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"""
+EMAIL_ADDRESS_PATTERN = r"^[a-zA-Z0-9._%+-]+@(?!.*\.{2,})([a-zA-Z0-9]+([.-]?[a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"
 EMAIL_VERIFY_RAPID_NAME = "mailcheck"
 EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
-
+EMAIL_SENDER_ADDRESS: str | None = 'bermen.system@gmail.com'
+EMAIL_SENDER_PWD: str | None = None
 
 def create_rapidAPI_request_headers(api_name: str) -> Dict[str, str]:
     """Creates an headers dictionary for rapid API requests,'
@@ -187,8 +173,10 @@ def create_rapidAPI_request_headers(api_name: str) -> Dict[str, str]:
         Dict[str, str]: The headers dictionary for rapid API requests,
         so it can be used for requests library request.
     """
-    return {
-        "content-type": "application/octet-stream",
+    headers = {
         "X-RapidAPI-Key": RAPID_API_KEY,
         "X-RapidAPI-Host": f"{api_name}.{RAPID_APIS_URL_SUFFIX}",
     }
+    if api_name != WHATSAPP_VALIDATOR_NAME:
+        headers["content-type"] = "application/octet-stream"
+    return headers
