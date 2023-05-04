@@ -1,13 +1,12 @@
 """Implementation for the User interface in the Content Aggregator system.
 """
 
-
+from __future__ import annotations
 from datetime import datetime
 import json
 
 from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.feeds.feed import FeedFactory
-from contentAggregator.common import ObjectResetOperationClassifier
 from contentAggregator import config
 from contentAggregator.user.userAuthentications import pwdHandler
 from contentAggregator.user.userAuthentications.validators import (
@@ -18,22 +17,24 @@ from contentAggregator.user.userAuthentications.validators import (
 from contentAggregator.user.userProperties.address import AddressFactory
 from contentAggregator.user.userProperties.time import Time
 from contentAggregator.user.userProperties.collections import (
-    UserCollectionResetController,
     UserDictController,
     UserSetController,
 )
+from contentAggregator.exceptions import UserNotFound
 
 
 class User:
     """Represents a user in the system"""
 
     def __init__(self, user_id: int) -> None:
+        if not self.is_valid_id(user_id):
+            raise UserNotFound("The user id is not valid.")
         self._id: int = user_id
         self._feeds: UserSetController | None = None
         self._addresses: UserDictController | None = None
         self._username: str | None = None
         self._password: str | None = None
-        self._sending_time: str | None = None
+        self._sending_time: Time | None = None
 
     def __repr__(self):
         return f"User(id={self.id})"
@@ -47,6 +48,29 @@ class User:
                 sending_time = {self.sending_time},
                 addresses    = {self.addresses},
                 """
+
+    def __eq__(self, other: User) -> bool:
+        return (
+            self._id == other._id
+            and self.username == other.username
+            and self.password == other.password
+            and self.feeds == other.feeds
+            and self.addresses == other.addresses
+            and self.sending_time == other.sending_time
+        )
+
+    @staticmethod
+    def is_valid_id(user_id: int) -> bool:
+        """Checks if the given user id is valid i.e if it's exist in database.
+
+        Args:
+            user_id (int): The user id to check.
+
+        Returns:
+            bool: True if the user id exists in users table, False otherwise.
+        """
+        users_list =  sqlQueries.get_users_set()
+        return user_id in users_list if users_list else False
 
     @property
     def id(self) -> int:

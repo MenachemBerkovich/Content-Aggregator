@@ -2,9 +2,10 @@
 Functions collection for some custom SQL queries required for the system.
 """
 
-from typing import List, Tuple, Iterable, Any, Dict, Union
+from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
 from .databaseCursor import MySQLCursorCM
+from contentAggregator import config
 
 
 def select(
@@ -37,7 +38,11 @@ def select(
         print(query_str)
     with MySQLCursorCM() as cursor:
         cursor.execute(query_str)
-        return cursor.fetchmany(size=desired_rows_num) if desired_rows_num else cursor.fetchall()
+        return (
+            cursor.fetchmany(size=desired_rows_num)
+            if desired_rows_num
+            else cursor.fetchall()
+        )
 
 
 def insert(
@@ -106,3 +111,16 @@ def delete(*, table: str, condition_expr: str | None = None) -> int | None:
         cursor.execute(query_str)
         cursor.fetchone()
         return cursor.rowcount
+
+
+def get_users_set() -> Set[int] | None:
+    """Collects all users id's and returns them as a list of strings.
+
+    Returns:
+        List[str] | None: A List of user's id's if there is any users, None otherwise.
+    """
+    db_response = select(
+        cols=config.USERS_DATA_COLUMNS.id,
+        table=config.DATABASE_TABLES_NAMES.users_table,
+    )
+    return {user[0] for user in db_response} if db_response[0][0] else None
