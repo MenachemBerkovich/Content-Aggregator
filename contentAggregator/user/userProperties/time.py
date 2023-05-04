@@ -1,4 +1,4 @@
-"""_summary_
+"""_summary_#TODO docstring
 """
 
 
@@ -11,7 +11,13 @@ class Timing(Enum):
     """Defined identities for timing types
     """
     DAILY = 1
-    WEEKLY = 2
+    MONDAY = 2
+    TUESDAY = 3
+    WEDNESDAY = 4
+    THURSDAY = 5
+    FRIDAY = 6
+    SATURDAY = 7
+    SUNDAY = 8
 
 
 class Time:
