@@ -71,7 +71,7 @@ class Messenger:
             #TODO match timezone also.
             job.at(user.sending_time.sending_time.strftime("%H:%M"))
             for address in user.addresses.collection.values():
-                job.do(address.send_message, [feed.content for feed in user.feeds.collection])
+                job.do(address.send_message, *(feed.content for feed in user.feeds.collection))
 
     def run(self) -> None:
         self._set_schedules()
