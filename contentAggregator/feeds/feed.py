@@ -1,9 +1,11 @@
 """classes for Feed objects of a different types.
 """
 
-
+from __future__ import annotations
 from abc import ABC, abstractstaticmethod
 import contextlib
+from typing import List, Tuple
+from datetime import datetime, timedelta
 
 import feedparser
 
@@ -12,7 +14,6 @@ from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.feeds.rating import FeedRatingResetManager
 from contentAggregator.common import ObjectResetOperationClassifier
 from contentAggregator import webRequests
-from contentAggregator.sqlManagement import sqlQueries
 
 
 class Feed(ABC):
@@ -20,10 +21,28 @@ class Feed(ABC):
     An half-abstract class for all feed types.
     """
 
-    def __init__(self, feed_id: int) -> None:
+    _instances = {}
+
+    def __new__(cls, **kwargs) -> Feed:
+        """Prevent instantiation of new feed with the same id as one that already exists
+        in _instances dictionary.
+        it's important to avoid unnecessary content downloads, for example.
+        
+
+        Returns:
+            Feed: One of the feed types.
+        """
+        if "feed_id" not in kwargs:
+            return super(Feed, cls).__new__(cls)
+        if not cls._instances.get(kwargs["feed_id"], None):
+            cls._instances[kwargs["feed_id"]] = super(Feed, cls).__new__(cls)
+        return cls._instances[kwargs["feed_id"]]
+
+    def __init__(self, *, feed_id: int) -> None:
         self._id = feed_id
         self._url: str | None = None
         self._rating: FeedRatingResetManager | None = None
+        self._content_info: Tuple[datetime, List[FeedItem]] | None = None
 
     def __repr__(self):
         return f"Feed(id={self._id})"
@@ -140,6 +159,18 @@ class Feed(ABC):
         )
         self._rating.rating = final_rating
 
+    @property
+    def content(self) -> List[FeedItem]:
+        """Property for the feed content,
+        which is a list of FeedItem objects.
+
+        Returns:
+            List[FeedItem]: The list of feed items.
+        """
+        if not self._content_info or (self._content_info[0] - datetime.now()).seconds // 60 > 5:
+            self._content = datetime.now(), [FeedItem(item) for item in self._download()]
+        return self._content_info[1]
+
     @abstractstaticmethod
     def is_valid(url: str) -> bool:
         """Abstract method to check if a url is valid
@@ -147,7 +178,7 @@ class Feed(ABC):
         """
         pass
 
-    def download(self) -> str:
+    def _download(self) -> str:
         """Downloads the feed content.
 
         Returns:
@@ -220,6 +251,42 @@ class FeedFactory:
         )[0][0]
         match feed_type:
             case config.FEED_TYPES.html:
-                return HTMLFeed(feed_id)
+                return HTMLFeed(feed_id=feed_id)
             case config.FEED_TYPES.rss:
-                return RSSFeed(feed_id)
+                return RSSFeed(feed_id=feed_id)
+
+
+
+class FeedItem:
+    """Construct of a feed item.
+    contains the feed properties,  with easy and secure access.
+    """
+    def __init__(self, item_string: str) -> None:
+        self._item_string: str = item_string
+        self._image: str | None = None
+        self._title: str | None = None
+        self._url: str | None = None
+
+    @property
+    def image(self) -> str | bool:
+        if self._image is None:
+            #TODO try parse it.... by feedparser
+            #if is not found, set it to False
+            # if found, set it to self._image value
+            pass
+        return self._image
+    
+    @property
+    def title(self) -> str:
+        if not self._title:
+            #TODO parse title
+            pass
+        return self._title
+    
+    @property
+    def url(self) -> str:
+        if not self._url:
+            #TODO parse url
+            pass
+        return self._url
+    

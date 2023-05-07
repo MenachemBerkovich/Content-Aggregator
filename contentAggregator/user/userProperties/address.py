@@ -10,6 +10,7 @@ from typing import List
 import phonenumbers
 import yagmail
 
+from contentAggregator.feeds.feed import FeedItem
 from contentAggregator import config, webRequests
 
 
@@ -48,7 +49,7 @@ class Address(ABC):
         pass
 
     @abstractmethod
-    def send_message(self, **message_params: str | List[str]) -> None:
+    def send_message(self,  *feeds_content: List[FeedItem]) -> None:
         """Sends messages to self.address from system address.
         It's expected to get kwargs as parameters, each concrete method as it's requirements.
         """
@@ -118,7 +119,7 @@ class WhatsAppAddress(NumberAddress):
         )
         return json.loads(response.text).get("valid", None)
 
-    def send_message(self, **message_params: str | List[str]) -> None:
+    def send_message(self,  *feeds_content: List[FeedItem]) -> None:
         """Sends a message to whatsapp number.
 
         Args:
@@ -132,12 +133,11 @@ class WhatsAppAddress(NumberAddress):
 class PhoneAddress(NumberAddress):
     """Class for a "phone addresses", used for kosher devices, for example [by voice calls]"""
 
-    def send_message(self, **message_params: str | List[str]) -> None:
+    def send_message(self, *feeds_content: List[FeedItem]) -> None:
         """Sends a voice message to the phone number.
 
         Args:
-            message_params (str): Necessary params for specific message,
-            like (audio='url_or_file_path').
+            feeds_content (str): variable number of feed items lists.
         """
         pass
 
@@ -174,13 +174,11 @@ class EmailAddress(Address):
         data = json.loads(response.text)
         return data.get("valid", False) and not data.get("disposable", True)
 
-    def send_message(self, **message_params: str | List[str] | List[str]) -> None:
+    def send_message(self,  *feeds_content: List[FeedItem]) -> None:
         """Sends a message to email address.
 
         Args:
-            message_params (str): Necessary params for specific message,
-            like (html='<p>Hey<p>', files=['img_file_path', 'img_file_path1'])
-            
+            feeds_content (str): variable number of feed items lists.
         """
         with yagmail.SMTP(config.EMAIL_SENDER_ADDRESS) as yag:
             yag.send(

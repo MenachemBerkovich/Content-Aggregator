@@ -91,7 +91,7 @@ class UserSetController(UserCollectionResetController):
         super().__isub__(self)
         for elem in other.collection:
             self.collection.remove(elem)
-            
+
 
 
 class UserDictController(UserCollectionResetController):

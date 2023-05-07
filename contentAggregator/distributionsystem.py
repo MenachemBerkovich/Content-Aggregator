@@ -5,6 +5,7 @@ Independent of any other system events, like client server interaction.
 from __future__ import annotations
 from typing import NamedTuple, Tuple, Callable
 from enum import Enum
+import time
 import contextlib
 
 import schedule
@@ -36,10 +37,10 @@ class Messenger:
         #insert new users
         new_users_set = updated_users_set.difference(self._users_table.keys())
         for user_id in new_users_set:
-            self._users_table[user_id] = User(user_id)        
+            self._users_table[user_id] = User(user_id)   
         self._set_schedules()
 
-    def _get_job(self, job_timing: Timing) -> schedule.Job:
+    def _create_job(self, job_timing: Timing) -> schedule.Job:
         match job_timing:
             case Timing.DAILY:
                 return self._scheduler.every().day
@@ -57,21 +58,28 @@ class Messenger:
                 raise ValueError("It is Shabes Kodesh!!!, What are you doing?!")
             case Timing.SUNDAY:
                 return self._scheduler.every().sunday
-    def _set_delivery_method(self, user: User) -> Tuple[Callable, str]:
-        #TODO docs and implementation
-        pass
+
+    # def _get_delivery_method(self, user: User) -> Tuple[Callable, str]:
+    #     return prepare_message([feed.download() for feed in user.feeds.collection])
+    #     #TODO docs and implementation
+    #     pass
 
     def _set_schedules(self) -> None:
         for user in self._users_table.values():
-            with contextlib.suppress(Exception):
-                job = self._get_job(user.sending_time.sending_schedule)
+            with contextlib.suppress(ValueError):
+                job = self._create_job(user.sending_time.sending_schedule)
+            #TODO match timezone also.
             job.at(user.sending_time.sending_time.strftime("%H:%M"))
-            job.do(**self._set_delivery_method(user))
+            for address in user.addresses.collection.values():
+                job.do(address.send_message, [feed.content for feed in user.feeds.collection])
 
     def run(self) -> None:
         self._set_schedules()
         while True:
             self._scheduler.run_pending()
+            #TODO: check user_table_correctness here by scheduling.
+            time.sleep(1)
+
 
 # class UsersTableEvent(NamedTuple):
 #     """Organizes information about events that may occur in the users table,
