@@ -177,12 +177,11 @@ class Feed(ABC):
 
     @property
     @abstractmethod
-    def content(self) -> List[FeedItem]:
-        """Property for the feed content,
-        which is a list of FeedItem objects.
+    def title(self) -> str:
+        """Returns the feed name \ title. 
 
         Returns:
-            List[FeedItem]: The list of feed items.
+            str: title if available, name [extracted from self.url].
         """
         pass
 
@@ -197,15 +196,15 @@ class Feed(ABC):
         pass
 
     @property
-    @abstractmethod
-    def title(self) -> str | None:
-        """Returns the feed name \ title \ description if available. 
+    def content(self) -> List[FeedItem]:
+        """Property for the feed content,
+        which is a list of FeedItem objects.
 
         Returns:
-            str | None: title if available, None otherwise.
+            List[FeedItem]: The list of feed items.
         """
-        pass
-
+        self.ensure_updated_stream()
+        return self._content_info[1]
 
     @staticmethod
     @abstractmethod
@@ -228,6 +227,8 @@ class Feed(ABC):
         """Ensures that the feed is updated per five minutes.
         """
         pass
+
+
 
 class XMLFeed(Feed):
     """Concrete class for RSS feeds,
@@ -258,22 +259,23 @@ class XMLFeed(Feed):
             ]
 
     @property
-    def content(self) -> List[FeedItem]:
-        self.ensure_updated_stream()
-        return self._content_info[1]
+    def title(self) -> str:
+        if not self._title:
+            try:
+                self._title = self._parsed_feed.channel.title
+            except KeyError:
+                self._title = self.url[self.url.find('//')+2:self.url.find('.')]
+        return self._title
 
     @property
     def image(self) -> str | None:
         self.ensure_updated_stream()
-        if image_info := self._parsed_feed.feed.get('image', None):
-            if self._image is None:
-                self._image = (
-                    image_url
-                    if (image_url := image_info.get('href', None))
-                    else False
-                )
+        if self._image is None:
+            try:
+                self._image = self._parsed_feed.channel.image.href
+            except KeyError:
+                self._image = False
         return self._image
-
 
 
 class HTMLFeed(Feed):
