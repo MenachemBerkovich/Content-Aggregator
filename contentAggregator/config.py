@@ -138,7 +138,7 @@ class FeedTypes:
         rss (str): Name of the RSS feed type.
     """
     html: str = 'HTML Feed'
-    rss: str = 'RSS Feed'
+    xml: str = 'RSS Feed'  # feed types such as RSS, CDF and Atom.
 
 FEED_TYPES = FeedTypes()
 
