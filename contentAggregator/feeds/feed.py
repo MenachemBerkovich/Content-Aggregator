@@ -8,6 +8,7 @@ from typing import List, Tuple
 from datetime import datetime, timedelta
 
 import feedparser
+from bs4 import BeautifulSoup
 
 from contentAggregator import config
 from contentAggregator.sqlManagement import sqlQueries
@@ -28,7 +29,6 @@ class Feed(ABC):
         in _instances dictionary.
         it's important to avoid unnecessary content downloads, for example.
 
-
         Returns:
             Feed: One of the feed types.
         """
@@ -45,7 +45,9 @@ class Feed(ABC):
         self._content_info: Tuple[datetime, List[FeedItem]] | None = None
         self._parsed_feed: feedparser.FeedParserDict | str | None = None
         self._title: str | None = None
-        self._image: str | None = None
+        self._image: str | bool = None
+        self._website: str | bool = None
+        self._description: str | bool = None
 
     def __repr__(self):
         return f"Feed(id={self._id})"
@@ -178,7 +180,7 @@ class Feed(ABC):
     @property
     @abstractmethod
     def title(self) -> str:
-        """Returns the feed name \ title. 
+        """Returns the feed name \ title.
 
         Returns:
             str: title if available, name [extracted from self.url].
@@ -187,8 +189,18 @@ class Feed(ABC):
 
     @property
     @abstractmethod
-    def image(self) -> str | None:
-        """Returns the feed image url if available. 
+    def description(self) -> str | bool:
+        """Returns the description of the feed if available.
+
+        Returns:
+            str  | bool: The description if available, False otherwise.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def image(self) -> str | bool:
+        """Returns the feed image url if available.
 
         Returns:
             str | None: url str if available, None otherwise.
@@ -205,6 +217,12 @@ class Feed(ABC):
         """
         self.ensure_updated_stream()
         return self._content_info[1]
+
+    @property
+    @abstractmethod
+    def website(self) -> str | bool:
+        """Returns the website url of the feed, if available"""
+        pass
 
     @staticmethod
     @abstractmethod
@@ -224,14 +242,12 @@ class Feed(ABC):
 
     @abstractmethod
     def ensure_updated_stream(self) -> None:
-        """Ensures that the feed is updated per five minutes.
-        """
+        """Ensures that the feed is updated per five minutes."""
         pass
 
 
-
 class XMLFeed(Feed):
-    """Concrete class for RSS feeds,
+    """Concrete class for based-XML feeds, such as RSS, CDF and Atom,
     with specific implementation for is_valid function.
     """
 
@@ -255,7 +271,7 @@ class XMLFeed(Feed):
         if self.should_be_updated():
             self._parsed_feed = feedparser.parse(self._download())
             self._content_info = datetime.now(), [
-                FeedItem(item) for item in self._parsed_feed.entries
+                XMLFeedItem(item) for item in self._parsed_feed.entries
             ]
 
     @property
@@ -264,11 +280,25 @@ class XMLFeed(Feed):
             try:
                 self._title = self._parsed_feed.channel.title
             except KeyError:
-                self._title = self.url[self.url.find('//')+2:self.url.find('.')]
+                self._title = self.url[self.url.find("//") + 2 : self.url.find(".")]
         return self._title
 
     @property
-    def image(self) -> str | None:
+    def description(self) -> str | bool:
+        if self._description is None:
+            try:
+                description = self._parsed_feed.channel.description
+                description_soup = BeautifulSoup(description, 'html.parser')
+                if description_str := description_soup.find('a'):
+                    self._description = description_str.text.strip()
+                else:
+                    self._description = description
+            except KeyError:
+                self._description = False
+        return self._description
+
+    @property
+    def image(self) -> str | bool:
         self.ensure_updated_stream()
         if self._image is None:
             try:
@@ -276,6 +306,15 @@ class XMLFeed(Feed):
             except KeyError:
                 self._image = False
         return self._image
+
+    @property
+    def website(self) -> str | bool:
+        if self._website is None:
+            try:
+                self._website = self._parsed_feed.channel.link
+            except KeyError:
+                self._website = False
+        return self._website
 
 
 class HTMLFeed(Feed):
@@ -325,16 +364,63 @@ class FeedFactory:
                 return XMLFeed(feed_id=feed_id)
 
 
-class FeedItem:
-    """Construct of a feed item.
-    contains the feed properties,  with easy and secure access.
+class FeedItem(ABC):
+    """Represents a feed item, with link, image, title, and publication_time attributes.
+    FeedItem can be a news item, a podcast item, or anything like that.
     """
 
-    def __init__(self, item_string: str) -> None:
-        self._item_string: str = item_string
+    def __init__(self, item_string: feedparser.util.FeedParserDict) -> None:
+        self._item: feedparser.util.FeedParserDict = item_string
         self._image: str | None = None
         self._title: str | None = None
         self._url: str | None = None
+        self._publication_time: datetime | bool = None
+
+    @property
+    @abstractmethod
+    def image(self) -> str | bool:
+        """Returns the url of the image describes this item, if there is one.
+
+        Returns:
+            str | bool: The image url if available, False otherwise.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def title(self) -> str:
+        """Returns the title \ header of the item.
+
+        Returns:
+            str: The title of the item as string.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def url(self) -> str:
+        """Returns the specific url of this item.
+
+        Returns:
+            str: The url of the item.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def publication_time(self) -> datetime | bool:
+        """Returns the publication date and time of the item.
+
+        Returns:
+            datetime | bool: The publication date and time of the item if available, false otherwise.
+        """
+        pass
+
+
+class XMLFeedItem(FeedItem):
+    """Construct of a feed item.
+    contains the feed properties, with easy and secure access.
+    """
 
     @property
     def image(self) -> str | bool:
@@ -355,6 +441,13 @@ class FeedItem:
     @property
     def url(self) -> str:
         if not self._url:
-            # TODO parse url
-            pass
+            try:
+                self._url = self._item.link
+            except KeyError:
+                self._url = False
         return self._url
+
+    def publication_time(self) -> datetime | bool:
+        if self._publication_time is None:
+            try:
+                

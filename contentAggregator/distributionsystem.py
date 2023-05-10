@@ -6,10 +6,10 @@ from __future__ import annotations
 from typing import NamedTuple, Tuple, Callable
 from enum import Enum
 import time
-import contextlib
 
 import schedule
 
+from contentAggregator.exceptions import TimingError
 from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.user.userInterface import User
 from contentAggregator.user.userProperties.time import Timing
@@ -25,22 +25,39 @@ class Messenger:
             self._users_table = {user_id: User(user_id) for user_id in users_set}
 
     def _check_users_table_correctness(self) -> None:
+        """Checks if any changes occurred in the database table.
+        If it did happen, the method will update self._users_table,
+        and reset schedules as necessary.
+        """
         updated_users_set = sqlQueries.get_users_set()
         delete_users_set = set(self._users_table.keys()).difference(updated_users_set)
-        # delete deleted users
+        # delete deleted users and cancel it's jobs.
         for user_id in delete_users_set:
             self._users_table.pop(user_id)
-        # update all remaining users
+            self._scheduler.clear(tag=user_id)
+        # update all remaining users in users table and cancel it's old jobs.
         # TODO consider improve the complexity by updating the modified only.
         for user_id in self._users_table.keys():
             self._users_table[user_id] = User(user_id)
+            self._scheduler.clear(tag=user_id)
         #insert new users
         new_users_set = updated_users_set.difference(self._users_table.keys())
         for user_id in new_users_set:
-            self._users_table[user_id] = User(user_id)   
+            self._users_table[user_id] = User(user_id)
         self._set_schedules()
 
     def _create_job(self, job_timing: Timing) -> schedule.Job:
+        """Create a new schedule.Job object with accordance timing.
+
+        Args:
+            job_timing (Timing): The timing of the sending, as determined by the user.
+
+        Raises:
+            TimingError: If sending timed to saturday. 
+
+        Returns:
+            schedule.Job: The scheduled Job registered in self._scheduler.
+        """
         match job_timing:
             case Timing.DAILY:
                 return self._scheduler.every().day
@@ -55,29 +72,30 @@ class Messenger:
             case Timing.FRIDAY:
                 return self._scheduler.every().friday
             case Timing.SATURDAY:
-                raise ValueError("It is Shabes Kodesh!!!, What are you doing?!")
+                raise TimingError("It is Shabes Kodesh!!!, What are you doing?!")
             case Timing.SUNDAY:
                 return self._scheduler.every().sunday
 
-    # def _get_delivery_method(self, user: User) -> Tuple[Callable, str]:
-    #     return prepare_message([feed.download() for feed in user.feeds.collection])
-    #     #TODO docs and implementation
-    #     pass
-
     def _set_schedules(self) -> None:
+        """Adds all sending tasks to the self._scheduler, each user as it's preferences.
+        """
         for user in self._users_table.values():
-            with contextlib.suppress(ValueError):
+            try:
                 job = self._create_job(user.sending_time.sending_schedule)
+            except TimingError:
+                continue
             #TODO match timezone also.
             job.at(user.sending_time.sending_time.strftime("%H:%M"))
             for address in user.addresses.collection.values():
-                job.do(address.send_message, *(feed.content for feed in user.feeds.collection))
+                job.do(address.send_message, *user.feeds.collection).tag(user.id)
+        self._scheduler.every(5).minutes.do(self._check_users_table_correctness)
 
     def run(self) -> None:
+        """Defines the schedules, and runs them.
+        """
         self._set_schedules()
         while True:
             self._scheduler.run_pending()
-            #TODO: check user_table_correctness here by scheduling.
             time.sleep(1)
 
 

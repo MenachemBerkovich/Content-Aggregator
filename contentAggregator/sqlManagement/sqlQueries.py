@@ -117,7 +117,7 @@ def get_users_set() -> Set[int] | None:
     """Collects all users id's and returns them as a list of strings.
 
     Returns:
-        List[str] | None: A List of user's id's if there is any users, None otherwise.
+        Set[int] | None: A List of user's id's if there is any users, None otherwise.
     """
     db_response = select(
         cols=config.USERS_DATA_COLUMNS.id,

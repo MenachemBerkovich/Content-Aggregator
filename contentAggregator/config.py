@@ -135,7 +135,7 @@ class FeedTypes:
 
     Object Attributes:
         html (str): Name of the HTML feed type.
-        rss (str): Name of the RSS feed type.
+        rss (str): Name of the XML feed type.
     """
     html: str = 'HTML Feed'
     xml: str = 'RSS Feed'  # feed types such as RSS, CDF and Atom.
