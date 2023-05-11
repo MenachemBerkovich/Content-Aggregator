@@ -4,8 +4,10 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import contextlib
-from typing import List, Tuple
-from datetime import datetime, timedelta
+from typing import List, Tuple, Set
+import time, datetime
+from enum import Enum
+import json
 
 import feedparser
 from bs4 import BeautifulSoup
@@ -15,6 +17,27 @@ from contentAggregator.sqlManagement import sqlQueries
 from contentAggregator.feeds.rating import FeedRatingResetManager
 from contentAggregator.common import ObjectResetOperationClassifier
 from contentAggregator import webRequests
+
+
+class FeedCategories(Enum):
+    """Enum class for feed categories identification and detection"""
+
+    NEWS = 0
+    BLOGS = 1
+    TECHNOLOGY = 2
+    TRAVEL = 3
+
+
+def match_category(category: FeedCategories) -> str:
+    match category:
+        case FeedCategories.NEWS:
+            return config.FEEDS_CATEGORIES_NAMES.news
+        case FeedCategories.BLOGS:
+            return config.FEEDS_CATEGORIES_NAMES.blogs
+        case FeedCategories.TECHNOLOGY:
+            return config.FEEDS_CATEGORIES_NAMES.technology
+        case FeedCategories.TRAVEL:
+            return config.FEEDS_CATEGORIES_NAMES.travel
 
 
 class Feed(ABC):
@@ -42,8 +65,10 @@ class Feed(ABC):
         self._id = feed_id
         self._url: str | None = None
         self._rating: FeedRatingResetManager | None = None
-        self._content_info: Tuple[datetime, List[FeedItem]] | None = None
+        self._categories: Set[FeedCategories] | None = None
+        self._content_info: Tuple[datetime.datetime, List[FeedItem]] | None = None
         self._parsed_feed: feedparser.FeedParserDict | str | None = None
+        self._language: str | bool = None
         self._title: str | None = None
         self._image: str | bool = None
         self._website: str | bool = None
@@ -174,8 +199,58 @@ class Feed(ABC):
         """
         return (
             not self._content_info
-            or (self._content_info[0] - datetime.now()).seconds // 60 > 5
+            or (self._content_info[0] - datetime.datetime.now()).seconds // 60 > 5
         )
+
+    @property
+    def categories(self) -> Set[str] | None:
+        """Getter property, for categories of this feed.
+        Each feed can cotains a lot of categories, like: news, technology,
+        blogs and so on.
+
+        Returns:
+            Set[str] | None: A Set of categories if was defined, None otherwise.
+        """
+        if not self._categories:
+            db_response = sqlQueries.select(
+                cols=config.FEEDS_DATA_COLUMNS.categories,
+                table=config.DATABASE_TABLES_NAMES.feeds_table,
+                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+            )
+            self._categories =  json.loads(db_response[0][0])
+        return {match_category(category) for category in self._categories}
+
+    @categories.setter
+    def categories(self, *categories: FeedCategories) -> None:
+        """Setter for the feed categories.
+        will be update the database and self._categories.
+        
+        Args:
+            categories (FeedCategories): a variable number of arguments, from the Enum class FeedCategories.
+        """
+        if any(not isinstance(category, FeedCategories) for category in categories):
+            raise ValueError("Feed category must be a type of FeedCategories Enum class.")
+        new_categories = set(categories)
+        sqlQueries.update(
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            updates_dict={
+                config.FEEDS_DATA_COLUMNS.categories: json.dumps(new_categories)
+            },
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+        )
+        self._categories = new_categories
+
+    @abstractmethod
+    @property
+    def language(self) -> str | bool:
+        """Getter property of the feed language.
+
+        Returns:
+            str | bool: The feed language as a string if available, False otherwise.
+        """
+        pass
+        #TODO concrete classes
+
 
     @property
     @abstractmethod
@@ -270,8 +345,9 @@ class XMLFeed(Feed):
     def ensure_updated_stream(self) -> None:
         if self.should_be_updated():
             self._parsed_feed = feedparser.parse(self._download())
-            self._content_info = datetime.now(), [
-                XMLFeedItem(item) for item in self._parsed_feed.entries
+            self._content_info = datetime.datetime.now(), [
+                XMLFeedItem(item, self._parsed_feed.version)
+                for item in self._parsed_feed.entries
             ]
 
     @property
@@ -287,12 +363,7 @@ class XMLFeed(Feed):
     def description(self) -> str | bool:
         if self._description is None:
             try:
-                description = self._parsed_feed.channel.description
-                description_soup = BeautifulSoup(description, 'html.parser')
-                if description_str := description_soup.find('a'):
-                    self._description = description_str.text.strip()
-                else:
-                    self._description = description
+                self._description = self._parsed_feed.channel.description
             except KeyError:
                 self._description = False
         return self._description
@@ -369,12 +440,16 @@ class FeedItem(ABC):
     FeedItem can be a news item, a podcast item, or anything like that.
     """
 
-    def __init__(self, item_string: feedparser.util.FeedParserDict) -> None:
+    def __init__(
+        self, item_string: feedparser.util.FeedParserDict, feed_version: str
+    ) -> None:
         self._item: feedparser.util.FeedParserDict = item_string
-        self._image: str | None = None
-        self._title: str | None = None
-        self._url: str | None = None
-        self._publication_time: datetime | bool = None
+        self._version: str = feed_version
+        self._image: str | bool = None
+        self._title: str | bool = None
+        self._description: str | bool = None
+        self._url: str | bool = None
+        self._publication_time: time.struct_time | bool = None
 
     @property
     @abstractmethod
@@ -398,6 +473,12 @@ class FeedItem(ABC):
 
     @property
     @abstractmethod
+    def description(self) -> str | bool:
+        """Returns the description of the item, if available. else returns False"""
+        pass
+
+    @property
+    @abstractmethod
     def url(self) -> str:
         """Returns the specific url of this item.
 
@@ -408,7 +489,7 @@ class FeedItem(ABC):
 
     @property
     @abstractmethod
-    def publication_time(self) -> datetime | bool:
+    def publication_time(self) -> time.struct_time | bool:
         """Returns the publication date and time of the item.
 
         Returns:
@@ -424,22 +505,40 @@ class XMLFeedItem(FeedItem):
 
     @property
     def image(self) -> str | bool:
+        if "rss2" not in self._version:
+            self._image = False
         if self._image is None:
-            # TODO try parse it.... by feedparser
-            # if is not found, set it to False
-            # if found, set it to self._image value
-            pass
+            try:
+                self._image = self._item.media_thumbnail[0]["url"]
+            except KeyError:
+                self._image = False
         return self._image
 
     @property
-    def title(self) -> str:
-        if not self._title:
-            # TODO parse title
-            pass
+    def title(self) -> str | bool:
+        if self._title is None:
+            try:
+                self._title = self._item.title
+            except KeyError:
+                self._title = False
         return self._title
 
     @property
-    def url(self) -> str:
+    def description(self) -> str | bool:
+        if self._description is None:
+            try:
+                description = self._item.description
+                description_soup = BeautifulSoup(description, "html.parser")
+                if description_str := description_soup.find("a"):
+                    self._description = description_str.text.strip()
+                else:
+                    self._description = description
+            except KeyError:
+                self._description = False
+        return self._description
+
+    @property
+    def url(self) -> str | bool:
         if not self._url:
             try:
                 self._url = self._item.link
@@ -447,7 +546,11 @@ class XMLFeedItem(FeedItem):
                 self._url = False
         return self._url
 
-    def publication_time(self) -> datetime | bool:
+    @property
+    def publication_time(self) -> time.struct_time | bool:
         if self._publication_time is None:
             try:
-                
+                self._publication_time = self._item.updated_parsed
+            except KeyError:
+                self._publication_time = False
+        return self._publication_time

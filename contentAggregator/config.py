@@ -118,14 +118,27 @@ class FeedsDataColumns:
         >>> my_feeds_data_attributes.link
         link
     """
-    
+
     id: str = "id"
     link: str = "url"
     rating: str = "rating"
     feed_type: str = "type" #TODO new column in db
-
+    categories: str = "categories" # TODO new column in db type JSON
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
+
+@dataclass
+class FeedCategoriesNames:
+    """Defines the feed categories names in the database.
+    """
+
+    news: str = "news"
+    blogs: str = "blogs"
+    travel: str = "travel"
+    technology: str = "technology"
+
+FEEDS_CATEGORIES_NAMES = FeedCategoriesNames()
+
 
 @dataclass
 class FeedTypes:
