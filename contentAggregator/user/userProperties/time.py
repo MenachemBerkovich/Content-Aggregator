@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from datetime import time
+
 from enum import Enum
 
 
@@ -19,7 +20,7 @@ class Timing(Enum):
     SATURDAY = 7
     SUNDAY = 8
 
-
+#TODO add timezone to the schedule in Messenger and handle it as well by user.sending_time setter and getter.
 class Time:
     """Time of messages sending, including hour, minute, and frequency.
     """

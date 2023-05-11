@@ -122,23 +122,10 @@ class FeedsDataColumns:
     id: str = "id"
     link: str = "url"
     rating: str = "rating"
-    feed_type: str = "type" #TODO new column in db
-    categories: str = "categories" # TODO new column in db type JSON
+    feed_type: str = "type"
+    categories: str = "categories"
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
-
-@dataclass
-class FeedCategoriesNames:
-    """Defines the feed categories names in the database.
-    """
-
-    news: str = "news"
-    blogs: str = "blogs"
-    travel: str = "travel"
-    technology: str = "technology"
-
-FEEDS_CATEGORIES_NAMES = FeedCategoriesNames()
-
 
 @dataclass
 class FeedTypes:
@@ -151,7 +138,7 @@ class FeedTypes:
         rss (str): Name of the XML feed type.
     """
     html: str = 'HTML Feed'
-    xml: str = 'RSS Feed'  # feed types such as RSS, CDF and Atom.
+    xml: str = 'XML-Based Feed'  # feed types such as RSS, CDF and Atom.
 
 FEED_TYPES = FeedTypes()
 

@@ -28,18 +28,6 @@ class FeedCategories(Enum):
     TRAVEL = 3
 
 
-def match_category(category: FeedCategories) -> str:
-    match category:
-        case FeedCategories.NEWS:
-            return config.FEEDS_CATEGORIES_NAMES.news
-        case FeedCategories.BLOGS:
-            return config.FEEDS_CATEGORIES_NAMES.blogs
-        case FeedCategories.TECHNOLOGY:
-            return config.FEEDS_CATEGORIES_NAMES.technology
-        case FeedCategories.TRAVEL:
-            return config.FEEDS_CATEGORIES_NAMES.travel
-
-
 class Feed(ABC):
     """Represents a feed in the system.
     An half-abstract class for all feed types.
@@ -203,34 +191,39 @@ class Feed(ABC):
         )
 
     @property
-    def categories(self) -> Set[str] | None:
+    def categories(self) -> Set[FeedCategories] | None:
         """Getter property, for categories of this feed.
-        Each feed can cotains a lot of categories, like: news, technology,
+        Each feed can contains a lot of categories, like: news, technology,
         blogs and so on.
 
         Returns:
-            Set[str] | None: A Set of categories if was defined, None otherwise.
+            Set[FeedCategories] | None: A Set of categories if was defined, None otherwise.
         """
         if not self._categories:
-            db_response = sqlQueries.select(
+            if db_response := sqlQueries.select(
                 cols=config.FEEDS_DATA_COLUMNS.categories,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
                 condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
-            )
-            self._categories =  json.loads(db_response[0][0])
-        return {match_category(category) for category in self._categories}
+            ):
+                categories = json.loads(db_response[0][0])
+                self._categories = set(
+                    FeedCategories._value2member_map_[key] for key in categories
+                )
+        return self._categories
 
     @categories.setter
     def categories(self, *categories: FeedCategories) -> None:
         """Setter for the feed categories.
         will be update the database and self._categories.
-        
+
         Args:
             categories (FeedCategories): a variable number of arguments, from the Enum class FeedCategories.
         """
         if any(not isinstance(category, FeedCategories) for category in categories):
-            raise ValueError("Feed category must be a type of FeedCategories Enum class.")
-        new_categories = set(categories)
+            raise ValueError(
+                "Feed category must be a type of FeedCategories Enum class."
+            )
+        new_categories = {category.value for category in categories}
         sqlQueries.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
             updates_dict={
@@ -249,8 +242,6 @@ class Feed(ABC):
             str | bool: The feed language as a string if available, False otherwise.
         """
         pass
-        #TODO concrete classes
-
 
     @property
     @abstractmethod
@@ -349,6 +340,15 @@ class XMLFeed(Feed):
                 XMLFeedItem(item, self._parsed_feed.version)
                 for item in self._parsed_feed.entries
             ]
+
+    @property
+    def language(self) -> str | bool:
+        if self._language is None:
+            try:
+                self._language = self._parsed_feed.channel.language
+            except KeyError:
+                self._language = False
+        return self._language
 
     @property
     def title(self) -> str:

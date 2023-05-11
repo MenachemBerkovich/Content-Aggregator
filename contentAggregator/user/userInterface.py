@@ -2,7 +2,7 @@
 """
 
 from __future__ import annotations
-from datetime import datetime
+import datetime
 import json
 
 from contentAggregator.sqlManagement import sqlQueries
@@ -15,7 +15,7 @@ from contentAggregator.user.userAuthentications.validators import (
     check_username_existence,
 )
 from contentAggregator.user.userProperties.address import AddressFactory
-from contentAggregator.user.userProperties.time import Time
+from contentAggregator.user.userProperties.time import Time, Timing
 from contentAggregator.user.userProperties.collections import (
     UserDictController,
     UserSetController,
@@ -69,7 +69,7 @@ class User:
         Returns:
             bool: True if the user id exists in users table, False otherwise.
         """
-        users_list =  sqlQueries.get_users_set()
+        users_list = sqlQueries.get_users_set()
         return user_id in users_list if users_list else False
 
     @property
@@ -186,7 +186,7 @@ class User:
                 config.USERS_DATA_COLUMNS.addresses: json.dumps(
                     {
                         address_type: address.address
-                        for address_type, address in self._addresses.collection
+                        for address_type, address in self._addresses.collection.items()
                     }
                 )
             },
@@ -283,7 +283,7 @@ class User:
             updates_dict={
                 config.USERS_DATA_COLUMNS.username: new_password,
                 config.USERS_DATA_COLUMNS.password: hashed_pwd,
-                config.USERS_DATA_COLUMNS.last_password_change_date: datetime.now().date(),
+                config.USERS_DATA_COLUMNS.last_password_change_date: datetime.datetime.now().date(),
             },
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
@@ -307,12 +307,16 @@ class User:
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
                 desired_rows_num=1,
             )[0]
+
             if all(db_response):
-                self._sending_time = Time(*db_response)
+                self._sending_time = Time(
+                    datetime.datetime.strptime(db_response[0], "%H:%M").time(),
+                    Timing._value2member_map_[db_response[1]],
+                )
             else:
                 raise ValueError(
                     """Could not find any timing settings.
-                                You must define sending preferences"""
+                    You must define sending preferences"""
                 )
         return self._sending_time
 
@@ -327,8 +331,10 @@ class User:
         sqlQueries.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
-                config.USERS_DATA_COLUMNS.sending_time: time.sending_time,
-                config.USERS_DATA_COLUMNS.sending_schedule: time.sending_schedule,
+                config.USERS_DATA_COLUMNS.sending_time: time.sending_time.strftime(
+                    "%H:%M"
+                ),
+                config.USERS_DATA_COLUMNS.sending_schedule: time.sending_schedule.value,
             },
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )

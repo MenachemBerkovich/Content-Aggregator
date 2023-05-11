@@ -97,20 +97,3 @@ class Messenger:
         while True:
             self._scheduler.run_pending()
             time.sleep(1)
-
-
-# class UsersTableEvent(NamedTuple):
-#     """Organizes information about events that may occur in the users table,
-#     like user deletion, user creation, user properties modifications.
-#     """
-#     user_id: str
-#     event: UserEvents
-
-
-# class UserEvents(Enum):
-#     """Defined identities for each event may occur for some user.
-#     """
-#     ADDED = 1
-#     DELETED = 2
-#     FEEDS_UPDATED = 3
-#     ADDRESSES_UPDATED = 4
