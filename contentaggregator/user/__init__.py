@@ -1,0 +1,2 @@
+from contentaggregator.user import userproperties
+from contentaggregator.user import userauthentications

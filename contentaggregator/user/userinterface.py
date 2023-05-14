@@ -5,22 +5,22 @@ from __future__ import annotations
 import datetime
 import json
 
-from contentAggregator.sqlManagement import sqlQueries
-from contentAggregator.feeds.feed import FeedFactory
-from contentAggregator import config
-from contentAggregator.user.userAuthentications import pwdHandler
-from contentAggregator.user.userAuthentications.validators import (
+from contentaggregator.sqlmanagement import databaseapi
+from contentaggregator.feeds.feed import FeedFactory
+from contentaggregator import config
+from contentaggregator.user.userauthentications import pwdhandler
+from contentaggregator.user.userauthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from contentAggregator.user.userProperties.address import AddressFactory
-from contentAggregator.user.userProperties.time import Time, Timing
-from contentAggregator.user.userProperties.collections import (
+from contentaggregator.user.userproperties.address import AddressFactory
+from contentaggregator.user.userproperties.time import Time, Timing
+from contentaggregator.user.userproperties.collections import (
     UserDictController,
     UserSetController,
 )
-from contentAggregator.exceptions import UserNotFound
+from contentaggregator.exceptions import UserNotFound
 
 
 class User:
@@ -69,7 +69,7 @@ class User:
         Returns:
             bool: True if the user id exists in users table, False otherwise.
         """
-        users_list = sqlQueries.get_users_set()
+        users_list = databaseapi.get_users_set()
         return user_id in users_list if users_list else False
 
     @property
@@ -92,7 +92,7 @@ class User:
             None otherwise.
         """
         if not self._feeds:
-            if db_response := sqlQueries.select(
+            if db_response := databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.subscriptions,
                 table=config.DATABASE_TABLES_NAMES.users_table,
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
@@ -118,7 +118,7 @@ class User:
 
     def _update_feeds(self) -> None:
         """Updates the user subscriptions as required by feeds.setter (+=, -= or assignment)."""
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
                 config.USERS_DATA_COLUMNS.subscriptions: json.dumps(
@@ -152,7 +152,7 @@ class User:
             None otherwise.
         """
         if not self._addresses:
-            if db_response := sqlQueries.select(
+            if db_response := databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.addresses,
                 table=config.DATABASE_TABLES_NAMES.users_table,
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
@@ -180,7 +180,7 @@ class User:
 
     def _update_addresses(self) -> None:
         """Updates the user subscriptions as required by feeds.setter (+=, -= or assignment)."""
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
                 config.USERS_DATA_COLUMNS.addresses: json.dumps(
@@ -211,7 +211,7 @@ class User:
             str: The name of this user.
         """
         if not self._username:
-            self._username = sqlQueries.select(
+            self._username = databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.username,
                 table=config.DATABASE_TABLES_NAMES.users_table,
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
@@ -239,7 +239,7 @@ class User:
             )
         if username_existence_exc := check_username_existence(new_username, False):
             raise username_existence_exc
-        sqlQueries.update(
+        databaseapi.update(
             table=new_username,
             updates_dict={config.USERS_DATA_COLUMNS.username: new_username},
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
@@ -255,7 +255,7 @@ class User:
             str: The hashed password of this user.
         """
         if not self._password:
-            self._password = sqlQueries.select(
+            self._password = databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.password,
                 table=config.DATABASE_TABLES_NAMES.users_table,
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
@@ -277,8 +277,8 @@ class User:
         """
         if event := check_password_validation(new_password):
             raise event
-        hashed_pwd = pwdHandler.encrypt_password(new_password)
-        sqlQueries.update(
+        hashed_pwd = pwdhandler.encrypt_password(new_password)
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
                 config.USERS_DATA_COLUMNS.username: new_password,
@@ -298,7 +298,7 @@ class User:
             Time: The Time object of this user (including it's sending time and sending schedule).
         """
         if not self._sending_time:
-            db_response = sqlQueries.select(
+            db_response = databaseapi.select(
                 cols=(
                     config.USERS_DATA_COLUMNS.sending_time,
                     config.USERS_DATA_COLUMNS.sending_schedule,
@@ -328,7 +328,7 @@ class User:
         Args:
             Time: The time to send the messages to this user.
         """
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
                 config.USERS_DATA_COLUMNS.sending_time: time.sending_time.strftime(
@@ -342,7 +342,7 @@ class User:
 
     def delete(self) -> None:
         """Deletes this user from the database."""
-        sqlQueries.delete(
+        databaseapi.delete(
             table=config.DATABASE_TABLES_NAMES.users_table,
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )

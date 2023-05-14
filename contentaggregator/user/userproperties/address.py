@@ -10,8 +10,8 @@ from typing import List
 import phonenumbers
 import yagmail
 
-from contentAggregator.feeds.feed import Feed
-from contentAggregator import config, webRequests
+from contentaggregator.feeds.feed import Feed
+from contentaggregator import config, webrequests
 
 
 class Address(ABC):
@@ -83,7 +83,7 @@ class NumberAddress(Address):
         """
         # TODO after it will be enabled by netfree consider using phonenumbervalidatefree.p.rapidapi.com
         # it giving 500 requests / month.
-        response = webRequests.get_response(
+        response = webrequests.get_response(
             method="get",
             url=config.VERIPHONE_VALIDATOR_URL,
             headers=config.create_rapidAPI_request_headers(config.VERIPHONE_RAPID_NAME),
@@ -109,7 +109,7 @@ class WhatsAppAddress(NumberAddress):
         """
         if not super()._is_valid():
             return False
-        response = webRequests.get_response(
+        response = webrequests.get_response(
             method="get",
             url=config.WHATSAPP_VALIDATOR_URL,
             headers=config.create_rapidAPI_request_headers(
@@ -163,7 +163,7 @@ class EmailAddress(Address):
         """
         if not re.match(config.EMAIL_ADDRESS_PATTERN, self.address):
             return False
-        response = webRequests.get_response(
+        response = webrequests.get_response(
             method="get",
             url=config.EMAIL_VERIFY_URL,
             headers=config.create_rapidAPI_request_headers(
@@ -178,12 +178,12 @@ class EmailAddress(Address):
         """Sends a message to email address.
 
         Args:
-            feeds_content (str): variable number of feed items lists.
+            feeds (str): variable number of feeds.
         """
         with yagmail.SMTP(config.EMAIL_SENDER_ADDRESS) as yag:
             yag.send(
                 to=self.address,
-                subject="Your daily mail:)",
+                subject="Hi! Here's is BerMen:)",
                 contents=[message_params.get("html", None)]
                 + [
                     yagmail.inline(file_path)

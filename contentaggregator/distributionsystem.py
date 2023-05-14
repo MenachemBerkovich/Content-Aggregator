@@ -9,10 +9,10 @@ import time
 
 import schedule
 
-from contentAggregator.exceptions import TimingError
-from contentAggregator.sqlManagement import sqlQueries
-from contentAggregator.user.userInterface import User
-from contentAggregator.user.userProperties.time import Timing
+from contentaggregator.exceptions import TimingError
+from contentaggregator.sqlmanagement import databaseapi
+from contentaggregator.user.userinterface import User
+from contentaggregator.user.userproperties.time import Timing
 
 class Messenger:
     """Sending messages to users - according to their preferences and settings.
@@ -21,15 +21,15 @@ class Messenger:
     def __init__(self) -> None:
         self._scheduler = schedule.Scheduler()
         self._users_table = {}
-        if users_set := sqlQueries.get_users_set():
+        if users_set := databaseapi.get_users_set():
             self._users_table = {user_id: User(user_id) for user_id in users_set}
 
-    def _check_users_table_correctness(self) -> None:
+    def _ensure_users_table_correctness(self) -> None:
         """Checks if any changes occurred in the database table.
         If it did happen, the method will update self._users_table,
         and reset schedules as necessary.
         """
-        updated_users_set = sqlQueries.get_users_set()
+        updated_users_set = databaseapi.get_users_set()
         delete_users_set = set(self._users_table.keys()).difference(updated_users_set)
         # delete deleted users and cancel it's jobs.
         for user_id in delete_users_set:
@@ -88,7 +88,7 @@ class Messenger:
             job.at(user.sending_time.sending_time.strftime("%H:%M"))
             for address in user.addresses.collection.values():
                 job.do(address.send_message, *user.feeds.collection).tag(user.id)
-        self._scheduler.every(5).minutes.do(self._check_users_table_correctness)
+        self._scheduler.every(5).minutes.do(self._ensure_users_table_correctness)
 
     def run(self) -> None:
         """Defines the schedules, and runs them.

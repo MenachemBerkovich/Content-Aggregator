@@ -12,11 +12,11 @@ import json
 import feedparser
 from bs4 import BeautifulSoup
 
-from contentAggregator import config
-from contentAggregator.sqlManagement import sqlQueries
-from contentAggregator.feeds.rating import FeedRatingResetManager
-from contentAggregator.common import ObjectResetOperationClassifier
-from contentAggregator import webRequests
+from contentaggregator import config
+from contentaggregator.sqlmanagement import databaseapi
+from contentaggregator.feeds.rating import FeedRatingResetManager
+from contentaggregator.common import ObjectResetOperationClassifier
+from contentaggregator import webrequests
 
 
 class FeedCategories(Enum):
@@ -96,7 +96,7 @@ class Feed(ABC):
             str: Feed url
         """
         if not self._url:
-            self._url = sqlQueries.select(
+            self._url = databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.link,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
                 condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
@@ -118,7 +118,7 @@ class Feed(ABC):
         if not self.is_valid(new_url):
             raise ValueError("Invalid url")
         self._url = new_url
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
             updates_dict={config.FEEDS_DATA_COLUMNS.link: new_url},
             condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
@@ -132,7 +132,7 @@ class Feed(ABC):
             float: The rating of this feed.
         """
         if not self._rating:
-            rating = sqlQueries.select(
+            rating = databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.rating,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
                 condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
@@ -170,7 +170,7 @@ class Feed(ABC):
             _set_final_rating: Sets the final rating by the desired reset operation.
         """
         final_rating = self._set_final_rating(rating_amount)
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
             updates_dict={config.FEEDS_DATA_COLUMNS.rating: final_rating},
             condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self.id}",
@@ -200,7 +200,7 @@ class Feed(ABC):
             Set[FeedCategories] | None: A Set of categories if was defined, None otherwise.
         """
         if not self._categories:
-            if db_response := sqlQueries.select(
+            if db_response := databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.categories,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
                 condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
@@ -224,7 +224,7 @@ class Feed(ABC):
                 "Feed category must be a type of FeedCategories Enum class."
             )
         new_categories = {category.value for category in categories}
-        sqlQueries.update(
+        databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
             updates_dict={
                 config.FEEDS_DATA_COLUMNS.categories: json.dumps(new_categories)
@@ -304,7 +304,7 @@ class Feed(ABC):
         Returns:
             str: Feed content.
         """
-        return webRequests.get_response(method="get", url=self._url).text
+        return webrequests.get_response(method="get", url=self._url).text
 
     @abstractmethod
     def ensure_updated_stream(self) -> None:
@@ -404,7 +404,7 @@ class HTMLFeed(Feed):
             bool: True if the url is valid, False otherwise.
         """
         return (
-            webRequests.get_response(method="head", url=url).headers["content-type"]
+            webrequests.get_response(method="head", url=url).headers["content-type"]
             == "text/html"
         )
 
@@ -423,7 +423,7 @@ class FeedFactory:
             Feed: An Feed object matched to the feed type.
 
         """
-        feed_type = sqlQueries.select(
+        feed_type = databaseapi.select(
             cols=config.FEEDS_DATA_COLUMNS.feed_type,
             table=config.DATABASE_TABLES_NAMES.feeds_table,
             condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {feed_id}",

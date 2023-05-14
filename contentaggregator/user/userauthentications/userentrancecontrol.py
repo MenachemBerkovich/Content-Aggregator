@@ -4,12 +4,12 @@ by login method or signup method. Including username and password verification.
 from typing import List
 from datetime import datetime
 
-from contentAggregator.user.userInterface import User
-from contentAggregator import config
-from contentAggregator.sqlManagement import sqlQueries
+from contentaggregator.user.userinterface import User
+from contentaggregator import config
+from contentaggregator.sqlmanagement import databaseapi
 
-from contentAggregator.user.userAuthentications import pwdHandler
-from contentAggregator.user.userAuthentications.validators import (
+from contentaggregator.user.userauthentications import pwdhandler
+from contentaggregator.user.userauthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     PASSWORD_CHECKERS,
     check_username_existence,
@@ -71,14 +71,14 @@ def save_new_user(username: str, password: str) -> int:
     Returns:
         int: The new user row id.
     """
-    return sqlQueries.insert(
+    return databaseapi.insert(
         table=config.DATABASE_TABLES_NAMES.users_table,
         cols=(
             config.USERS_DATA_COLUMNS.username,
             config.USERS_DATA_COLUMNS.password,
             config.USERS_DATA_COLUMNS.last_password_change_date,
         ),
-        values=(username, pwdHandler.encrypt_password(password), datetime.now().date()),
+        values=(username, pwdhandler.encrypt_password(password), datetime.now().date()),
     )
 
 

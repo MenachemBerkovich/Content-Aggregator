@@ -3,7 +3,7 @@
 
 import bcrypt
 
-from contentAggregator import config
+from contentaggregator import config
 
 def encrypt_password(password: str) -> str:
     """Encrypt the password using bcrypt.

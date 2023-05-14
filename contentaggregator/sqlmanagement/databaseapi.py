@@ -4,8 +4,8 @@ Functions collection for some custom SQL queries required for the system.
 
 from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
-from .databaseCursor import MySQLCursorCM
-from contentAggregator import config
+from .databasecursor import MySQLCursorCM
+from contentaggregator import config
 
 
 def select(
