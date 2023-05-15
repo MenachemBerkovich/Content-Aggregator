@@ -21,7 +21,7 @@ class MySQLCursorCM:
         self.connection: MySQLConnection | None = None
         self.cursor: MySQLCursor | None = None
 
-    def __enter__(self) -> MySQLConnection:
+    def __enter__(self) -> MySQLCursor:
         try:
             self.connection = MySQLConnection(
                 host=self.__host,

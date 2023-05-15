@@ -124,6 +124,7 @@ class FeedsDataColumns:
     rating: str = "rating"
     feed_type: str = "type"
     categories: str = "categories"
+    items_size: str = "items_size"
 
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
 

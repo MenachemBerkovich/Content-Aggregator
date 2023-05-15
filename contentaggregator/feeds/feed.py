@@ -61,6 +61,7 @@ class Feed(ABC):
         self._image: str | bool = None
         self._website: str | bool = None
         self._description: str | bool = None
+        self._items_size: int | None = None
 
     def __repr__(self):
         return f"Feed(id={self._id})"
@@ -177,6 +178,40 @@ class Feed(ABC):
         )
         self._rating.rating = final_rating
 
+    @property
+    def items_size(self) -> int:
+        """items_size property, for getting the size of the items provided by this feed.
+
+        Returns:
+            int: The size of the items.
+        """
+        if not self._items_size:
+            self._items_size = databaseapi.select(
+                cols=config.FEEDS_DATA_COLUMNS.items_size,
+                table=config.DATABASE_TABLES_NAMES.feeds_table,
+                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+            )[0][0]
+        return self._items_size
+
+    @items_size.setter
+    def items_size(self, size: int) -> None:
+        """items_size setter property, enable easy way to change the defined size in tha database
+        
+        Args:
+            size (int): The new size for this feed.
+            
+        Raises:
+            ValueError: if the given size is invalid, e.g less than zero.
+        """
+        if size <= 0:
+            raise ValueError("Items_size must be greater than zero.")
+        databaseapi.update(
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            updates_dict={config.FEEDS_DATA_COLUMNS.items_size: size},
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+        )
+        self._items_size = size
+
     def should_be_updated(self) -> bool:
         """Checks if self.content_info needs to be updated.
            Depends on the last download time [if more than five minutes have passed]
@@ -233,8 +268,8 @@ class Feed(ABC):
         )
         self._categories = new_categories
 
-    @abstractmethod
     @property
+    @abstractmethod
     def language(self) -> str | bool:
         """Getter property of the feed language.
 
@@ -338,7 +373,7 @@ class XMLFeed(Feed):
             self._parsed_feed = feedparser.parse(self._download())
             self._content_info = datetime.datetime.now(), [
                 XMLFeedItem(item, self._parsed_feed.version)
-                for item in self._parsed_feed.entries
+                for item in self._parsed_feed.entries[: self.items_size]
             ]
 
     @property
@@ -510,47 +545,51 @@ class XMLFeedItem(FeedItem):
         if self._image is None:
             try:
                 self._image = self._item.media_thumbnail[0]["url"]
-            except KeyError:
+            except AttributeError:
                 self._image = False
         return self._image
 
     @property
     def title(self) -> str | bool:
         if self._title is None:
-            try:
-                self._title = self._item.title
-            except KeyError:
-                self._title = False
+            self._title = self._item.get("title", False)
         return self._title
 
     @property
     def description(self) -> str | bool:
         if self._description is None:
-            try:
-                description = self._item.description
-                description_soup = BeautifulSoup(description, "html.parser")
+            self._description = self._item.get("description", False)
+            if self._description:
+                description_soup = BeautifulSoup(self._description, "html.parser")
                 if description_str := description_soup.find("a"):
                     self._description = description_str.text.strip()
-                else:
-                    self._description = description
-            except KeyError:
-                self._description = False
+            # try:
+            #     description = self._item.description
+            #     description_soup = BeautifulSoup(description, "html.parser")
+            #     if description_str := description_soup.find("a"):
+            #         self._description = description_str.text.strip()
+            #     else:
+            #         self._description = description
+            # except KeyError:
+            #     self._description = False
         return self._description
 
     @property
     def url(self) -> str | bool:
         if not self._url:
-            try:
-                self._url = self._item.link
-            except KeyError:
-                self._url = False
+            self._url = self._item.get("link", None)
+            # try:
+            #     self._url = self._item.link
+            # except KeyError:
+            #     self._url = False
         return self._url
 
     @property
     def publication_time(self) -> time.struct_time | bool:
         if self._publication_time is None:
-            try:
-                self._publication_time = self._item.updated_parsed
-            except KeyError:
-                self._publication_time = False
+            self._publication_time = self._item.get("updated_parsed", False)
+            # try:
+            #     self._publication_time = self._item.updated_parsed
+            # except KeyError:
+            #     self._publication_time = False
         return self._publication_time
