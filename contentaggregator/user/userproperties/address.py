@@ -11,7 +11,7 @@ import phonenumbers
 import yagmail
 
 from contentaggregator.feeds.feed import Feed
-from contentaggregator import config, webrequests
+from contentaggregator import config, webrequests, messagesgeneration
 
 
 class Address(ABC):
@@ -49,7 +49,7 @@ class Address(ABC):
         pass
 
     @abstractmethod
-    def send_message(self,  *feeds: Feed) -> None:
+    def send_message(self, *feeds: Feed) -> None:
         """Sends messages to self.address from system address.
         It's expected to get kwargs as parameters, each concrete method as it's requirements.
         """
@@ -180,15 +180,14 @@ class EmailAddress(Address):
         Args:
             feeds (str): variable number of feeds.
         """
+        message = "\n".join(
+            messagesgeneration.generate_html_feed_summery(feed) for feed in feeds
+        )
         with yagmail.SMTP(config.EMAIL_SENDER_ADDRESS) as yag:
             yag.send(
                 to=self.address,
                 subject="Hi! Here's is BerMen:)",
-                contents=[message_params.get("html", None)]
-                + [
-                    yagmail.inline(file_path)
-                    for file_path in message_params.get("files", None)
-                ],
+                contents=message,
             )
 
 

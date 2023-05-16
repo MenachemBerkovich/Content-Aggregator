@@ -381,7 +381,7 @@ class XMLFeed(Feed):
         if self._language is None:
             try:
                 self._language = self._parsed_feed.channel.language
-            except KeyError:
+            except AttributeError:
                 self._language = False
         return self._language
 
@@ -390,7 +390,7 @@ class XMLFeed(Feed):
         if not self._title:
             try:
                 self._title = self._parsed_feed.channel.title
-            except KeyError:
+            except AttributeError:
                 self._title = self.url[self.url.find("//") + 2 : self.url.find(".")]
         return self._title
 
@@ -399,7 +399,7 @@ class XMLFeed(Feed):
         if self._description is None:
             try:
                 self._description = self._parsed_feed.channel.description
-            except KeyError:
+            except AttributeError:
                 self._description = False
         return self._description
 
@@ -409,7 +409,7 @@ class XMLFeed(Feed):
         if self._image is None:
             try:
                 self._image = self._parsed_feed.channel.image.href
-            except KeyError:
+            except AttributeError:
                 self._image = False
         return self._image
 
@@ -418,7 +418,7 @@ class XMLFeed(Feed):
         if self._website is None:
             try:
                 self._website = self._parsed_feed.channel.link
-            except KeyError:
+            except AttributeError:
                 self._website = False
         return self._website
 
@@ -442,6 +442,30 @@ class HTMLFeed(Feed):
             webrequests.get_response(method="head", url=url).headers["content-type"]
             == "text/html"
         )
+
+    def ensure_updated_stream(self) -> None:
+        raise NotImplementedError
+
+    @property
+    def language(self) -> str | bool:
+        raise NotImplementedError
+
+    @property
+    def title(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def description(self) -> str | bool:
+        raise NotImplementedError
+
+    @property
+    def image(self) -> str | bool:
+        raise NotImplementedError
+
+    @property
+    def website(self) -> str | bool:
+        raise NotImplementedError
+
 
 
 class FeedFactory:
