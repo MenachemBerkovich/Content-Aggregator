@@ -5,7 +5,7 @@ Functions collection for some custom SQL queries required for the system.
 from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
 from .databasecursor import MySQLCursorCM
-from contentaggregator import config
+from contentaggregator.lib import config
 
 
 def select(

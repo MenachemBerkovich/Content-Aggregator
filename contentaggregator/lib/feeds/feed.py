@@ -12,11 +12,11 @@ import json
 import feedparser
 from bs4 import BeautifulSoup
 
-from contentaggregator import config
-from contentaggregator.sqlmanagement import databaseapi
-from contentaggregator.feeds.rating import FeedRatingResetManager
-from contentaggregator.common import ObjectResetOperationClassifier
-from contentaggregator import webrequests
+from contentaggregator.lib import config
+from contentaggregator.lib.sqlmanagement import databaseapi
+from contentaggregator.lib.feeds.rating import FeedRatingResetManager
+from contentaggregator.lib.common import ObjectResetOperationClassifier
+from contentaggregator.lib import webrequests
 
 
 class FeedCategories(Enum):

@@ -7,8 +7,8 @@ import time
 
 import tinyhtml
 
-from contentaggregator import config
-from contentaggregator.feeds.feed import Feed, FeedItem
+from contentaggregator.lib import config
+from contentaggregator.lib.feeds.feed import Feed, FeedItem
 
 
 def _sort_feed_items(feed_items: List[FeedItem]) -> None:

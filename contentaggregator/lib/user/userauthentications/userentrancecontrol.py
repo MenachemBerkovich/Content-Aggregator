@@ -4,12 +4,12 @@ by login method or signup method. Including username and password verification.
 from typing import List
 from datetime import datetime
 
-from contentaggregator.user.userinterface import User
-from contentaggregator import config
-from contentaggregator.sqlmanagement import databaseapi
+from contentaggregator.lib.user.userinterface import User
+from contentaggregator.lib import config
+from contentaggregator.lib.sqlmanagement import databaseapi
 
-from contentaggregator.user.userauthentications import pwdhandler
-from contentaggregator.user.userauthentications.validators import (
+from contentaggregator.lib.user.userauthentications import pwdhandler
+from contentaggregator.lib.user.userauthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     PASSWORD_CHECKERS,
     check_username_existence,

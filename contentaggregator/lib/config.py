@@ -95,7 +95,7 @@ class AddressesKeys:
     phone: str = "phone"
     sms: str = "sms"
     whatsapp: str = "whatsapp"
-    
+
 ADDRESSES_KEYS = AddressesKeys()
 
 
@@ -160,7 +160,7 @@ VERIPHONE_VALIDATOR_URL: str = (
 EMAIL_ADDRESS_PATTERN = r"^[a-zA-Z0-9._%+-]+@(?!.*\.{2,})([a-zA-Z0-9]+([.-]?[a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"
 EMAIL_VERIFY_RAPID_NAME = "mailcheck"
 EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
-EMAIL_SENDER_ADDRESS: str | None = 'bermen.system@gmail.com' #TODO register it with keyring and configure the app password in the main file that runs messenger.
+EMAIL_SENDER_ADDRESS: str | None = None #TODO register it with keyring and configure the app password in the main file that runs messenger.
 # when is will enabled to make 2-step authentication for this google account.
 EMAIL_SENDER_PWD: str | None = None
 

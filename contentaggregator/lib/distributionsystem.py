@@ -9,10 +9,10 @@ import time
 
 import schedule
 
-from contentaggregator.exceptions import TimingError
-from contentaggregator.sqlmanagement import databaseapi
-from contentaggregator.user.userinterface import User
-from contentaggregator.user.userproperties.time import Timing
+from contentaggregator.lib.exceptions import TimingError
+from contentaggregator.lib.sqlmanagement import databaseapi
+from contentaggregator.lib.user.userinterface import User
+from contentaggregator.lib.user.userproperties.time import Timing
 
 class Messenger:
     """Sending messages to users - according to their preferences and settings.

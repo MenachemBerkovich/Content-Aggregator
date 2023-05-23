@@ -5,22 +5,22 @@ from __future__ import annotations
 import datetime
 import json
 
-from contentaggregator.sqlmanagement import databaseapi
-from contentaggregator.feeds.feed import FeedFactory
-from contentaggregator import config
-from contentaggregator.user.userauthentications import pwdhandler
-from contentaggregator.user.userauthentications.validators import (
+from contentaggregator.lib.sqlmanagement import databaseapi
+from contentaggregator.lib.feeds.feed import FeedFactory
+from contentaggregator.lib import config
+from contentaggregator.lib.user.userauthentications import pwdhandler
+from contentaggregator.lib.user.userauthentications.validators import (
     check_password_validation,
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from contentaggregator.user.userproperties.address import AddressFactory
-from contentaggregator.user.userproperties.time import Time, Timing
-from contentaggregator.user.userproperties.collections import (
+from contentaggregator.lib.user.userproperties.address import AddressFactory
+from contentaggregator.lib.user.userproperties.time import Time, Timing
+from contentaggregator.lib.user.userproperties.collections import (
     UserDictController,
     UserSetController,
 )
-from contentaggregator.exceptions import UserNotFound
+from contentaggregator.lib.exceptions import UserNotFound
 
 
 class User:

@@ -9,9 +9,9 @@ from __future__ import annotations
 from typing import Tuple, Set, Dict
 from abc import ABC, abstractmethod
 
-from contentaggregator.common import ObjectResetOperationClassifier
-from contentaggregator.feeds.feed import Feed
-from contentaggregator.user.userproperties.address import Address
+from contentaggregator.lib.common import ObjectResetOperationClassifier
+from contentaggregator.lib.feeds.feed import Feed
+from contentaggregator.lib.user.userproperties.address import Address
 
 
 class UserCollectionResetController(ABC):

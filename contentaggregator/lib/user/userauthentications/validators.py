@@ -7,11 +7,11 @@ from datetime import datetime, timedelta
 from typing import Tuple, List, Callable
 
 
-from contentaggregator.user.userauthentications import pwdhandler
+from contentaggregator.lib.user.userauthentications import pwdhandler
 
-from contentaggregator import config
-from contentaggregator.sqlmanagement import databaseapi
-from contentaggregator import exceptions
+from contentaggregator.lib import config
+from contentaggregator.lib.sqlmanagement import databaseapi
+from contentaggregator.lib import exceptions
 
 
 # bad usernames [easy to guess] that are not allowed in the system.
@@ -347,4 +347,4 @@ PRELIMINARY_USERNAME_CHECKERS: Tuple[Callable[[str, str], Exception]] = (
 # A tuple of a function objects used for password initial validation.
 PASSWORD_CHECKERS: Tuple[Callable[[str], Exception]] = (check_password_validation,)
 
-from contentaggregator.user import userinterface
+from contentaggregator.lib.user import userinterface

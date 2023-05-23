@@ -10,8 +10,8 @@ from typing import List
 import phonenumbers
 import yagmail
 
-from contentaggregator.feeds.feed import Feed
-from contentaggregator import config, webrequests, messagesgeneration
+from contentaggregator.lib.feeds.feed import Feed
+from contentaggregator.lib import config, webrequests, messagesgeneration
 
 
 class Address(ABC):
