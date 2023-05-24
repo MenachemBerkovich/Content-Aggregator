@@ -255,9 +255,9 @@ def check_username_existence(
         exceptions.UserNameAlreadyExists(
             "Sorry, this username is already taken. Please choose another name."
         )
-        if db_response[0] and not required_val
+        if not required_val and db_response
         else exceptions.UserNotFound("Username does not exist.")
-        if not db_response[0] and required_val
+        if  required_val and not db_response
         else None
     )
 

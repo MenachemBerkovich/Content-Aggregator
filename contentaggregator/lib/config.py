@@ -3,15 +3,15 @@ like data base credentials, database name, data tables name and columns of data 
 """
 from dataclasses import dataclass
 from typing import Dict
+import os
 
+SQL_USERNAME: str = os.environ['SQL_USERNAME']
 
-SQL_USERNAME: str | None = None
+SQL_HOST: str  = os.environ['SQL_HOST']
 
-SQL_HOST: str | None = None
+SQL_PASSWORD: str = os.environ['SQL_PASSWORD']
 
-SQL_PASSWORD: str | None = None
-
-DATABASE_NAME: str | None = None
+DATABASE_NAME: str = os.environ['DATABASE_NAME']
 
 
 @dataclass
@@ -145,7 +145,7 @@ FEED_TYPES = FeedTypes()
 
 PASSWORD_ENCODING_METHOD: str | None = "utf-8"
 
-RAPID_API_KEY: str | None = None
+RAPID_API_KEY: str = os.environ['RAPID_API_KEY']
 HTTPS_PREFIX: str = "https://"
 RAPID_APIS_URL_SUFFIX: str = "p.rapidapi.com"
 WHATSAPP_VALIDATOR_NAME: str = "whatsapp-validator-fast"
@@ -160,9 +160,9 @@ VERIPHONE_VALIDATOR_URL: str = (
 EMAIL_ADDRESS_PATTERN = r"^[a-zA-Z0-9._%+-]+@(?!.*\.{2,})([a-zA-Z0-9]+([.-]?[a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"
 EMAIL_VERIFY_RAPID_NAME = "mailcheck"
 EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
-EMAIL_SENDER_ADDRESS: str | None = None #TODO register it with keyring and configure the app password in the main file that runs messenger.
+EMAIL_SENDER_ADDRESS: str = os.environ['EMAIL_SENDER_ADDRESS'] #TODO register it with keyring and configure the app password in the main file that runs messenger.
 # when is will enabled to make 2-step authentication for this google account.
-EMAIL_SENDER_PWD: str | None = None
+EMAIL_SENDER_PWD: str = os.environ['EMAIL_SENDER_PWD']
 
 def create_rapidAPI_request_headers(api_name: str) -> Dict[str, str]:
     """Creates an headers dictionary for rapid API requests,'

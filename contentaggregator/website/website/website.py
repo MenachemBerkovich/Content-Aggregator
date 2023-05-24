@@ -1,9 +1,9 @@
 """"""
 import pynecone as pc
 
-from . import signing
+from . import entrance
 
-@pc.route("/", "Bermen", "/homepage_background.jpg")
+
 def index() -> pc.Component:
     return pc.vstack(
         pc.text(
@@ -70,7 +70,7 @@ def index() -> pc.Component:
             ),
         ),
         pc.box(
-            pc.button(pc.link("Sign in", href="/signin")),
+            pc.button(pc.link("Login", href="/login")),
             pc.button(pc.link("Sign up", href="/signup")),
         ),
         background_image="/homepage_back.png",
@@ -83,7 +83,7 @@ meta = [
     {"property": "og:url", "content": "url"},
 ]
 
-app = pc.App(state=pc.State)
+app = pc.App(state=entrance.EntranceState)
 
 app.add_page(
     index,
@@ -92,6 +92,18 @@ app.add_page(
     description="A beautiful app built with Pynecone",
     image="/homepage_background.jpg",
 )
-app.add_page(signing.sign_in_session, route="/signin")
-app.add_page(signing.sign_up_session, route="/signup")
+app.add_page(
+    entrance.log_in_session,
+    route="/login",
+    on_load=entrance.EntranceState.reload,
+    title="Bermen Login Session",
+)
+
+app.add_page(
+    entrance.sign_up_session,
+    route="/signup",
+    on_load=entrance.EntranceState.reload,
+    title="Bermen Sign Up Session",
+)
+
 app.compile()

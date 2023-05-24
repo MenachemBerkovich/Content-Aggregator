@@ -64,12 +64,13 @@ def insert(
     """
     values_expr_preparing = "%s"
     if isinstance(cols, Iterable):
-        values_expr_preparing = "%s, ".join(range(len(cols)))
+        values_expr_preparing = ",".join("%s" for _ in range(len(cols)))
         cols = ", ".join(cols)
     query_str = f"INSERT INTO {table} ({cols}) VALUES ({values_expr_preparing})"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
-    with MySQLCursorCM as cursor:
+    with MySQLCursorCM() as cursor:
+        print(query_str, values)
         cursor.execute(query_str, values)
         return cursor.lastrowid
 
