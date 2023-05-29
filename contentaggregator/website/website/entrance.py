@@ -4,6 +4,9 @@ from contentaggregator.lib.user.userauthentications import userentrancecontrol
 from contentaggregator.lib.user.userinterface import User
 
 
+CURRENT_USER: User | None = None
+
+
 class EntranceState(pc.State):
     """Manage user entrance process."""
 
@@ -11,6 +14,7 @@ class EntranceState(pc.State):
     password: str = ""
     message: str = ""
     is_clicked: bool = False
+    is_authenticated: bool = False
 
     def reload(self):
         """Needed for '/signin' or '/login' page on_load attrs."""
@@ -18,29 +22,35 @@ class EntranceState(pc.State):
         self.password = ""
         # Describe state like is not clicked.
         self.is_clicked = False
-        # Determine the message to be nothing.
+        # Determine message to be nothing.
         self.message = ""
+        self.is_authenticated = False
 
-    def log_in(self):
+    def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.
         And redirect into the dashboard view page (if the login was successful).
         """
         self.is_clicked = True
         try:
-            self.user = userentrancecontrol.log_in(self.username, self.password)
-            self.message = (
-                "Login successful"  # TODO: pc.redirect instead of reset self.message
+            globals()["CURRENT_USER"] = userentrancecontrol.log_in(
+                self.username, self.password
             )
+            self.is_authenticated = True
+            return pc.redirect("/dashboard")
         except Exception as e:
             self.message = str(e)
 
-    def sign_up(self):
+    def sign_up(self) -> pc.event.EventSpec | None:
         """Sign up for new users."""
         self.is_clicked = True
         try:
-            self.user = userentrancecontrol.sign_up(self.username, self.password)
-            self.message = """Sign Up Success! Please continue to user dashboard,
-                              and set your favorite feeds, addresses and sending time."""
+            globals()["CURRENT_USER"] = userentrancecontrol.sign_up(
+                self.username, self.password
+            )
+            self.is_authenticated = True
+            # self.message = """Sign Up Success! Please continue to user dashboard,
+                            #   and set your favorite feeds, addresses and sending time."""
+            return pc.redirect("/dashboard")
         except Exception as e:
             self.message = str(e)
 
@@ -142,3 +152,39 @@ def sign_up_session() -> pc.Component:
         should_wrap_children=True,
         spacing="1em",
     )
+
+
+# class DashboardState(EntranceState):
+#     @pc.var
+#     def username(self) -> str:
+#         return CURRENT_USER.username if CURRENT_USER else ""
+
+
+# def username_presentation() -> pc.Component:
+#     return pc.hstack(pc.text("User name:", as_="b"), pc.text(DashboardState.username))
+
+
+# def password_presentation() -> pc.Component:
+#     return pc.text("password")
+
+
+# def feeds_presentation() -> pc.Component:
+#     return pc.text("feeds")
+
+
+# def addresses_presentation() -> pc.Component:
+#     return pc.text("addresses")
+
+
+# def sending_time_presentation() -> pc.Component:
+#     return pc.text("sending_time")
+
+
+# def landing() -> pc.Component:
+#     return pc.vstack(
+#         username_presentation(),
+#         password_presentation(),
+#         feeds_presentation(),
+#         addresses_presentation(),
+#         sending_time_presentation(),
+#     )

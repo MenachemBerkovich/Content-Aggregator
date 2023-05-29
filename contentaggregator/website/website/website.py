@@ -2,6 +2,7 @@
 import pynecone as pc
 
 from . import entrance
+from . import dashboard
 
 
 def index() -> pc.Component:
@@ -105,5 +106,7 @@ app.add_page(
     on_load=entrance.EntranceState.reload,
     title="Bermen Sign Up Session",
 )
+
+app.add_page(dashboard.landing, route="/dashboard")
 
 app.compile()

@@ -35,7 +35,6 @@ def select(
     query_str = f"SELECT {cols} FROM {table}"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
-        print(query_str)
     with MySQLCursorCM() as cursor:
         cursor.execute(query_str)
         return (
@@ -70,7 +69,6 @@ def insert(
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
     with MySQLCursorCM() as cursor:
-        print(query_str, values)
         cursor.execute(query_str, values)
         return cursor.lastrowid
 
