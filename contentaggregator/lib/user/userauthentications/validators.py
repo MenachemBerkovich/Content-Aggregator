@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Tuple, List, Callable
 
 
+from contentaggregator.lib.user import userinterface
 from contentaggregator.lib.user.userauthentications import pwdhandler
 
 from contentaggregator.lib import config
@@ -325,8 +326,8 @@ def check_credentials_compatibility(
         table=config.DATABASE_TABLES_NAMES.users_table,
         condition_expr=f"{config.USERS_DATA_COLUMNS.username} = '{username}'",
     )
-
-    is_match_flag = pwdhandler.is_same_password(password, db_response[0][0])
+    print(db_response)
+    is_match_flag = pwdhandler.is_same_password(password, bytes(db_response[0][0]))
     return (
         exceptions.PasswordNotUpdated(
             "A new password must be chosen", userinterface.User(db_response[0][2])
@@ -346,5 +347,3 @@ PRELIMINARY_USERNAME_CHECKERS: Tuple[Callable[[str, str], Exception]] = (
 
 # A tuple of a function objects used for password initial validation.
 PASSWORD_CHECKERS: Tuple[Callable[[str], Exception]] = (check_password_validation,)
-
-from contentaggregator.lib.user import userinterface

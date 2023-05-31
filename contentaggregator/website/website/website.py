@@ -78,21 +78,15 @@ def index() -> pc.Component:
     )
 
 
-meta = [
-    {"name": "theme_color", "content": "#FFFFFF"},
-    {"char_set": "UTF-8"},
-    {"property": "og:url", "content": "url"},
-]
-
 app = pc.App(state=entrance.EntranceState)
 
 app.add_page(
     index,
-    meta=meta,
     title="Bermen",
     description="A beautiful app built with Pynecone",
     image="/homepage_background.jpg",
 )
+
 app.add_page(
     entrance.log_in_session,
     route="/login",
@@ -107,6 +101,11 @@ app.add_page(
     title="Bermen Sign Up Session",
 )
 
-app.add_page(dashboard.landing, route="/dashboard")
+app.add_page(
+    dashboard.landing,
+    route="/dashboard",
+    on_load=dashboard.DashboardState.reload_dashboard,
+    title="User dashboard",
+)
 
 app.compile()

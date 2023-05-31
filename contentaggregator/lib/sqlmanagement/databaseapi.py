@@ -34,7 +34,8 @@ def select(
         cols = ", ".join(cols)
     query_str = f"SELECT {cols} FROM {table}"
     if condition_expr:
-        query_str += f" WHERE {condition_expr}"
+        query_str += f" WHERE BINARY {condition_expr}"
+    print(query_str)
     with MySQLCursorCM() as cursor:
         cursor.execute(query_str)
         return (
@@ -68,6 +69,8 @@ def insert(
     query_str = f"INSERT INTO {table} ({cols}) VALUES ({values_expr_preparing})"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
+    print(query_str, values)
+
     with MySQLCursorCM() as cursor:
         cursor.execute(query_str, values)
         return cursor.lastrowid
@@ -84,11 +87,13 @@ def update(
         condition_expr (str | None, optional): Condition on the update locations. Defaults to None.
     """
     updates = ", ".join(f"{k} = {v}" for k, v in updates_dict.items())
-    sql_query = f"UPDATE {table} SET {updates}"
+    #updates = ", ".join(f"%({key})s" for key in updates_dict)
+    query_str = f"UPDATE {table} SET {updates}"
     if condition_expr:
-        sql_query += f" WHERE {condition_expr}"
-    with MySQLCursorCM as cursor:
-        cursor.execute(sql_query)
+        query_str += f" WHERE {condition_expr}"
+    print(query_str, updates_dict)
+    with MySQLCursorCM() as cursor:
+        cursor.execute(query_str, updates_dict)
 
 
 def delete(*, table: str, condition_expr: str | None = None) -> int | None:
@@ -106,7 +111,7 @@ def delete(*, table: str, condition_expr: str | None = None) -> int | None:
     query_str = f"DELETE FROM {table}"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
-    with MySQLCursorCM as cursor:
+    with MySQLCursorCM() as cursor:
         cursor.execute(query_str)
         cursor.fetchone()
         return cursor.rowcount

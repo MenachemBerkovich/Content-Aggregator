@@ -33,7 +33,7 @@ class User:
         self._feeds: UserSetController | None = None
         self._addresses: UserDictController | None = None
         self._username: str | None = None
-        self._password: str | None = None
+        self._password: bytes | None = None
         self._sending_time: Time | None = None
 
     def __repr__(self):
@@ -240,27 +240,29 @@ class User:
         if username_existence_exc := check_username_existence(new_username, False):
             raise username_existence_exc
         databaseapi.update(
-            table=new_username,
-            updates_dict={config.USERS_DATA_COLUMNS.username: new_username},
+            table=config.DATABASE_TABLES_NAMES.users_table,
+            updates_dict={config.USERS_DATA_COLUMNS.username: repr(new_username)},
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
         )
         self._username = new_username
 
     @property
-    def password(self) -> str:
+    def password(self) -> bytes:
         """Password property getter.
         Gets the password object of this user.
 
         Returns:
-            str: The hashed password of this user.
+            bytes: The hashed password of this user.
         """
         if not self._password:
-            self._password = databaseapi.select(
-                cols=config.USERS_DATA_COLUMNS.password,
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0][0]
+            self._password = bytes(
+                databaseapi.select(
+                    cols=config.USERS_DATA_COLUMNS.password,
+                    table=config.DATABASE_TABLES_NAMES.users_table,
+                    condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
+                    desired_rows_num=1,
+                )[0][0]
+            )
         return self._password
 
     @password.setter
@@ -281,13 +283,20 @@ class User:
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
-                config.USERS_DATA_COLUMNS.username: new_password,
-                config.USERS_DATA_COLUMNS.password: hashed_pwd,
-                config.USERS_DATA_COLUMNS.last_password_change_date: datetime.datetime.now().date(),
+                # Using repr and decode to update sql with regular string like: '@weer8S!~~'
+                # Unlike in sign_up method that uses insert query.
+                config.USERS_DATA_COLUMNS.password: repr(
+                    hashed_pwd.decode(config.PASSWORD_ENCODING_METHOD)
+                ),
+                # Using repr and str to update the date with str like: '2015-09-23'
+                # Unlike in sign_up method that uses the insert query.
+                config.USERS_DATA_COLUMNS.last_password_change_date: repr(
+                    str(datetime.datetime.now().date())
+                ),
             },
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
-        self._password = new_password
+        self._password = hashed_pwd
 
     @property
     def sending_time(self) -> Time:
