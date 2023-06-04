@@ -1,6 +1,10 @@
+from typing import List, Set, Any
+
 import pynecone as pc
 
+from contentaggregator.lib.user.userproperties import collections
 from contentaggregator.lib.user.userauthentications import pwdhandler
+from contentaggregator.lib.feeds import feed
 from . import entrance
 
 
@@ -54,8 +58,8 @@ class DashboardPasswordState(entrance.EntranceState):
         if not self.is_authenticated:
             return
         if not pwdhandler.is_same_password(
-                self.old_password, entrance.CURRENT_USER.password
-            ):
+            self.old_password, entrance.CURRENT_USER.password
+        ):
             self.password_reset_message = "Old password is incorrect"
         elif self.new_password != self.new_password_confirmation:
             self.password_reset_message = "New password has not been confirmed"
@@ -95,8 +99,147 @@ def password_presentation() -> pc.Component:
     )
 
 
+class FeedsDashboardState(entrance.EntranceState):
+    # feed_selected: bool = False
+    # _user_feeds = (
+    #     "None" if not entrance.CURRENT_USER else entrance.CURRENT_USER.feeds.collection
+    # )
+    _selected_feeds: Set[feed.Feed] = set()
+
+    def delete_feeds(self) -> None:
+        if self.is_authenticated:
+            entrance.CURRENT_USER.feeds -= collections.UserSetController(
+                *self._selected_feeds
+            )
+            self._selected_feeds.clear()
+
+    def update_feed(self, feed: feed.Feed) -> None:
+        if feed not in self._selected_feeds:
+            self._selected_feeds.add(feed)
+        else:
+            self._selected_feeds.remove(feed)
+
+    def render_feed_box(self, feed: feed.Feed) -> pc.Component:
+        return pc.hstack(
+            
+            pc.link(
+                pc.image(src=feed.image or "https://pynecone.io/black.png"),
+                href=feed.website,
+            ),
+            pc.text(feed.title),
+            pc.checkbox(
+                "Select",
+                color_scheme="green",
+                on_change=lambda: FeedsDashboardState().update_feed(feed),
+            ),
+        )
+
+    @pc.var
+    def user_feeds(self) -> List[List[str]]:
+        if self.is_authenticated and entrance.CURRENT_USER.feeds:
+            return [
+                [
+                    feed.image or "https://pynecone.io/black.png",
+                    feed.title,
+                    feed.description,
+                    feed.id,
+                ]
+                for feed in entrance.CURRENT_USER.feeds.collection
+            ]
+
+    # def render_feeds(self) -> pc.Component:
+    #     if entrance.EntranceState.is_authenticated:
+    #         return pc.vstack(
+    #             pc.text("Feeds:"),
+    #             pc.foreach(entrance.CURRENT_USER.feeds.collection, render_feed_box),
+    #             pc.button(use
+    #                 "Delete",
+    #                 is_disabled=FeedsDashboardState.is_deletion_disabled,
+    #                 on_click=FeedsDashboardState.delete_feeds,
+    #             ),
+    #         )
+    #     else:
+    #         pc.text("Login")
+
+    # @pc.var
+    # def feeds_boxes(self) -> pc.Component:
+    #     if self.is_authenticated:
+    #         return (
+    #             pc.foreach(list(entrance.CURRENT_USER.feeds.collection), render_feed_box),
+    #         )
+    #     return pc.text("login")
+
+    @pc.var
+    def is_deletion_disabled(self) -> bool:
+        return bool(self._selected_feeds)
+
+
+# def render_row(feed: feed.Feed) -> pc.Component:
+#     if entrance.EntranceState.is_authenticated:
+#         return pc.tr(
+#             pc.td(
+#                 pc.link(
+#                     pc.image(src=feed.image or "https://pynecone.io/black.png"),
+#                     href=feed.website,
+#                 ),
+#                 pc.text(feed.title),
+#             ),
+#             pc.td(pc.text(feed.description)),
+#             pc.td(pc.text(feed.rating)),
+#             pc.td(
+#                 pc.button(
+#                     "Delete",
+#                     on_click=FeedsDashboardState.delete_feed,
+#                     # on_mouse_over=FeedsDashboardState.set_selected_feed_id,
+#                 )
+#             ),
+#         )
+
+
+def render_feed_box(feed_details: List[str | None]) -> pc.Component:
+    return pc.hstack(
+        pc.link(
+            pc.image(src=feed_details[0] or "https://pynecone.io/black.png"),
+            href=feed_details[1],
+        ),
+        pc.text(feed_details[2]),
+        pc.checkbox(
+            "Select",
+            color_scheme="green",
+            on_change=lambda: FeedsDashboardState.update_feed(feed_details[3]),
+        ),
+    )
+
+
 def feeds_presentation() -> pc.Component:
-    return pc.text("feeds")
+    if FeedsDashboardState.user_feeds:
+        return pc.vstack(
+            pc.text("Feeds:"),
+            pc.foreach(FeedsDashboardState.user_feeds, render_feed_box),
+            # FeedsDashboardState.feeds_boxes,
+            pc.button(
+                "Delete",
+                is_disabled=FeedsDashboardState.is_deletion_disabled,
+                on_click=FeedsDashboardState.delete_feeds,
+            )
+            #     pc.table(
+            #         pc.thead(
+            #             pc.tr(
+            #                 pc.foreach(
+            #                     FeedsDashboardState.columns, lambda header: pc.th(header)
+            #                 )
+            #             )
+            #         ),
+            #         pc.tbody(
+            #             pc.foreach(
+            #                 FeedsDashboardState.user_feeds_set,
+            #                 lambda feed: render_row(feed),
+            #             )
+            #         ),
+            #     ),
+        )
+    else:
+        return pc.text("Login")
 
 
 def addresses_presentation() -> pc.Component:

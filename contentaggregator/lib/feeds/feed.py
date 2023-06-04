@@ -9,6 +9,7 @@ import time, datetime
 from enum import Enum
 import json
 
+import pynecone as pc
 import feedparser
 from bs4 import BeautifulSoup
 
@@ -50,7 +51,7 @@ class Feed(ABC):
         return cls._instances[kwargs["feed_id"]]
 
     def __init__(self, *, feed_id: int) -> None:
-        self._id = feed_id
+        self._id: int = feed_id
         self._url: str | None = None
         self._rating: FeedRatingResetManager | None = None
         self._categories: Set[FeedCategories] | None = None
@@ -181,6 +182,7 @@ class Feed(ABC):
     @property
     def items_size(self) -> int:
         """items_size property, for getting the size of the items provided by this feed.
+        Meaning - How many items will be sent to the user. 
 
         Returns:
             int: The size of the items.
