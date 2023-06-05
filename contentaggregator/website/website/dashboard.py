@@ -105,6 +105,7 @@ class FeedsDashboardState(entrance.EntranceState):
     #     "None" if not entrance.CURRENT_USER else entrance.CURRENT_USER.feeds.collection
     # )
     _selected_feeds: Set[feed.Feed] = set()
+    feeds_reset_message: str = ""
 
     def delete_feeds(self) -> None:
         if self.is_authenticated:
@@ -113,35 +114,44 @@ class FeedsDashboardState(entrance.EntranceState):
             )
             self._selected_feeds.clear()
 
-    def update_feed(self, feed: feed.Feed) -> None:
+    def update_feed(self, feed_id: int) -> None:
         if feed not in self._selected_feeds:
             self._selected_feeds.add(feed)
         else:
             self._selected_feeds.remove(feed)
 
-    def render_feed_box(self, feed: feed.Feed) -> pc.Component:
-        return pc.hstack(
-            
-            pc.link(
-                pc.image(src=feed.image or "https://pynecone.io/black.png"),
-                href=feed.website,
-            ),
-            pc.text(feed.title),
-            pc.checkbox(
-                "Select",
-                color_scheme="green",
-                on_change=lambda: FeedsDashboardState().update_feed(feed),
-            ),
-        )
+    # def render_feed_box(self, feed: feed.Feed) -> pc.Component:
+    #     return pc.hstack(
+    #         pc.link(
+    #             pc.image(src=feed.image or "https://pynecone.io/black.png"),
+    #             href=feed.website,
+    #         ),
+    #         pc.text(feed.title),
+    #         pc.checkbox(
+    #             "Select",
+    #             color_scheme="green",
+    #             on_change=lambda: FeedsDashboardState().update_feed(feed),
+    #         ),
+    #     )
+
+    @pc.var
+    def has_feeds(self) -> bool:
+        try:
+            bool_value = bool(entrance.CURRENT_USER.feeds)
+            if not bool_value:
+                self.feeds_reset_message = "Currently don't you have any feeds:( you can change it here below:)"
+        except Exception:
+            bool_value = False
+        return bool_value
 
     @pc.var
     def user_feeds(self) -> List[List[str]]:
-        if self.is_authenticated and entrance.CURRENT_USER.feeds:
+        if self.has_feeds:
             return [
                 [
                     feed.image or "https://pynecone.io/black.png",
                     feed.title,
-                    feed.description,
+                    feed.description or feed.title,
                     feed.id,
                 ]
                 for feed in entrance.CURRENT_USER.feeds.collection
@@ -196,7 +206,7 @@ class FeedsDashboardState(entrance.EntranceState):
 #         )
 
 
-def render_feed_box(feed_details: List[str | None]) -> pc.Component:
+def render_feed_box(feed_details: List[str]) -> pc.Component:
     return pc.hstack(
         pc.link(
             pc.image(src=feed_details[0] or "https://pynecone.io/black.png"),
@@ -206,40 +216,44 @@ def render_feed_box(feed_details: List[str | None]) -> pc.Component:
         pc.checkbox(
             "Select",
             color_scheme="green",
-            on_change=lambda: FeedsDashboardState.update_feed(feed_details[3]),
+            # on_change=lambda feed_details: FeedsDashboardState().update_feed(
+            # feed_details[3]
         ),
     )
+    # )
 
 
 def feeds_presentation() -> pc.Component:
-    if FeedsDashboardState.user_feeds:
-        return pc.vstack(
-            pc.text("Feeds:"),
-            pc.foreach(FeedsDashboardState.user_feeds, render_feed_box),
-            # FeedsDashboardState.feeds_boxes,
-            pc.button(
-                "Delete",
-                is_disabled=FeedsDashboardState.is_deletion_disabled,
-                on_click=FeedsDashboardState.delete_feeds,
-            )
-            #     pc.table(
-            #         pc.thead(
-            #             pc.tr(
-            #                 pc.foreach(
-            #                     FeedsDashboardState.columns, lambda header: pc.th(header)
-            #                 )
-            #             )
-            #         ),
-            #         pc.tbody(
-            #             pc.foreach(
-            #                 FeedsDashboardState.user_feeds_set,
-            #                 lambda feed: render_row(feed),
-            #             )
-            #         ),
-            #     ),
-        )
-    else:
-        return pc.text("Login")
+    return pc.vstack(
+        pc.text("Feeds:"),
+        pc.cond(
+            FeedsDashboardState.has_feeds,
+            pc.vstack(
+                pc.foreach(FeedsDashboardState.user_feeds, render_feed_box),
+                pc.button(
+                    "Delete",
+                    is_disabled=FeedsDashboardState.is_deletion_disabled,
+                    on_click=FeedsDashboardState.delete_feeds,
+                ),
+            ),
+        ),
+        pc.text(FeedsDashboardState.feeds_reset_message),
+    )
+    #     pc.table(
+    #         pc.thead(
+    #             pc.tr(
+    #                 pc.foreach(
+    #                     FeedsDashboardState.columns, lambda header: pc.th(header)
+    #                 )
+    #             )
+    #         ),
+    #         pc.tbody(
+    #             pc.foreach(
+    #                 FeedsDashboardState.user_feeds_set,
+    #                 lambda feed: render_row(feed),
+    #             )
+    #         ),
+    #     ),
 
 
 def addresses_presentation() -> pc.Component:

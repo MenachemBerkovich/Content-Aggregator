@@ -16,7 +16,7 @@ class EntranceState(pc.State):
     is_clicked: bool = False
     is_authenticated: bool = False
 
-    def reload(self):
+    def reload(self) -> None:
         """Needed for '/signin' or '/login' page on_load attrs."""
         self.username = ""
         self.password = ""
