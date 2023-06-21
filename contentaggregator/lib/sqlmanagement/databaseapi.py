@@ -6,6 +6,7 @@ from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
 from .databasecursor import MySQLCursorCM
 from contentaggregator.lib import config
+from contentaggregator.lib.feeds import feed
 
 
 def select(
@@ -86,14 +87,17 @@ def update(
         updates_dict (Dict[Any, Any]): Dictionary of columns names as keys and the new updated values as values.
         condition_expr (str | None, optional): Condition on the update locations. Defaults to None.
     """
-    updates = ", ".join(f"{k} = {v}" for k, v in updates_dict.items())
-    #updates = ", ".join(f"%({key})s" for key in updates_dict)
+    updates = ", ".join(
+        f"{k} = {v}" if v is not None else f"{k} = NULL"
+        for k, v in updates_dict.items()
+    )
+    # updates = ", ".join(f"%({key})s" for key in updates_dict)
     query_str = f"UPDATE {table} SET {updates}"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"
     print(query_str, updates_dict)
     with MySQLCursorCM() as cursor:
-        cursor.execute(query_str, updates_dict)
+        cursor.execute(query_str)  # , updates_dict)
 
 
 def delete(*, table: str, condition_expr: str | None = None) -> int | None:
@@ -118,13 +122,29 @@ def delete(*, table: str, condition_expr: str | None = None) -> int | None:
 
 
 def get_users_set() -> Set[int] | None:
-    """Collects all users id's and returns them as a list of strings.
+    # TODO with threads
+    """Collects all users id's and returns them as a set of ints.
 
     Returns:
-        Set[int] | None: A List of user's id's if there is any users, None otherwise.
+        Set[int] | None: A set of user's id's if there is any users, None otherwise.
     """
     db_response = select(
         cols=config.USERS_DATA_COLUMNS.id,
         table=config.DATABASE_TABLES_NAMES.users_table,
     )
     return {user[0] for user in db_response} if db_response[0][0] else None
+
+
+def get_feeds_set() -> Set[feed.Feed]:
+    # TODO with threads
+    """Collects all feeds existing in the database
+    and returns them as a set of feeds objects.
+
+    Returns:
+        Set[feed.Feed]: A set of feed objects.
+    """
+    db_response = select(
+        cols=config.FEEDS_DATA_COLUMNS.id,
+        table=config.DATABASE_TABLES_NAMES.feeds_table,
+    )
+    return {feed.FeedFactory.create(feed_id[0]) for feed_id in db_response}

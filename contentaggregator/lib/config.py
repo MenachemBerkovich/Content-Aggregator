@@ -5,13 +5,16 @@ from dataclasses import dataclass
 from typing import Dict
 import os
 
-SQL_USERNAME: str = os.environ['SQL_USERNAME']
+SQL_USERNAME: str = os.environ["SQL_USERNAME"]
 
-SQL_HOST: str  = os.environ['SQL_HOST']
+SQL_HOST: str = os.environ["SQL_HOST"]
 
-SQL_PASSWORD: str = os.environ['SQL_PASSWORD']
+SQL_PASSWORD: str = os.environ["SQL_PASSWORD"]
 
-DATABASE_NAME: str = os.environ['DATABASE_NAME']
+DATABASE_NAME: str = os.environ["DATABASE_NAME"]
+
+
+SECURITY_CERTIFICATE: str | None = "/home/mefathim/Documents/projects/contentAggregator/contentaggregator/lib/netfree-ca.crt"
 
 
 @dataclass
@@ -80,6 +83,7 @@ class UsersDataColumns:
 
 USERS_DATA_COLUMNS = UsersDataColumns()
 
+
 @dataclass
 class AddressesKeys:
     """The UsersDataColumns for USERS_DATA_COLUMNS modifying.
@@ -91,10 +95,12 @@ class AddressesKeys:
         sms (str): Key for SMS number inside dictionary.
         whatsapp (str): Key for WhatsApp number inside dictionary.
     """
+
     email: str = "email"
     phone: str = "phone"
     sms: str = "sms"
     whatsapp: str = "whatsapp"
+
 
 ADDRESSES_KEYS = AddressesKeys()
 
@@ -126,7 +132,9 @@ class FeedsDataColumns:
     categories: str = "categories"
     items_size: str = "items_size"
 
+
 FEEDS_DATA_COLUMNS = FeedsDataColumns()
+
 
 @dataclass
 class FeedTypes:
@@ -138,14 +146,16 @@ class FeedTypes:
         html (str): Name of the HTML feed type.
         rss (str): Name of the XML feed type.
     """
-    html: str = 'HTML Feed'
-    xml: str = 'XML-Based Feed'  # feed types such as RSS, CDF and Atom.
+
+    html: str = "HTML Feed"
+    xml: str = "XML-Based Feed"  # feed types such as RSS, CDF and Atom.
+
 
 FEED_TYPES = FeedTypes()
 
 PASSWORD_ENCODING_METHOD: str | None = "utf-8"
 
-RAPID_API_KEY: str = os.environ['RAPID_API_KEY']
+RAPID_API_KEY: str = os.environ["RAPID_API_KEY"]
 HTTPS_PREFIX: str = "https://"
 RAPID_APIS_URL_SUFFIX: str = "p.rapidapi.com"
 WHATSAPP_VALIDATOR_NAME: str = "whatsapp-validator-fast"
@@ -160,9 +170,12 @@ VERIPHONE_VALIDATOR_URL: str = (
 EMAIL_ADDRESS_PATTERN = r"^[a-zA-Z0-9._%+-]+@(?!.*\.{2,})([a-zA-Z0-9]+([.-]?[a-zA-Z0-9]+)*)\.([a-zA-Z]{2,})$"
 EMAIL_VERIFY_RAPID_NAME = "mailcheck"
 EMAIL_VERIFY_URL = f"{HTTPS_PREFIX + EMAIL_VERIFY_RAPID_NAME}.{RAPID_APIS_URL_SUFFIX}/"
-EMAIL_SENDER_ADDRESS: str = os.environ['EMAIL_SENDER_ADDRESS'] #TODO register it with keyring and configure the app password in the main file that runs messenger.
+EMAIL_SENDER_ADDRESS: str = os.environ[
+    "EMAIL_SENDER_ADDRESS"
+]  # TODO register it with keyring and configure the app password in the main file that runs messenger.
 # when is will enabled to make 2-step authentication for this google account.
-EMAIL_SENDER_PWD: str = os.environ['EMAIL_SENDER_PWD']
+EMAIL_SENDER_PWD: str = os.environ["EMAIL_SENDER_PWD"]
+
 
 def create_rapidAPI_request_headers(api_name: str) -> Dict[str, str]:
     """Creates an headers dictionary for rapid API requests,'

@@ -9,22 +9,27 @@ CURRENT_USER: User | None = None
 
 class EntranceState(pc.State):
     """Manage user entrance process."""
-
+    _user: User | None = None
     username: str = ""
     password: str = ""
     message: str = ""
     is_clicked: bool = False
-    is_authenticated: bool = False
+    # is_authenticated: bool = False
 
+    @pc.var    
+    def is_authenticated(self) -> bool:
+        return bool(self._user)
+    
     def reload(self) -> None:
         """Needed for '/signin' or '/login' page on_load attrs."""
+        self._user = None
         self.username = ""
         self.password = ""
         # Describe state like is not clicked.
         self.is_clicked = False
         # Determine message to be nothing.
         self.message = ""
-        self.is_authenticated = False
+        #self.is_authenticated = False
 
     def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.
@@ -32,10 +37,10 @@ class EntranceState(pc.State):
         """
         self.is_clicked = True
         try:
-            globals()["CURRENT_USER"] = userentrancecontrol.log_in(
+            self._user = userentrancecontrol.log_in(
                 self.username, self.password
             )
-            self.is_authenticated = True
+            # self.is_authenticated = True
             return pc.redirect("/dashboard")
         except Exception as e:
             self.message = str(e)
@@ -44,10 +49,10 @@ class EntranceState(pc.State):
         """Sign up for new users."""
         self.is_clicked = True
         try:
-            globals()["CURRENT_USER"] = userentrancecontrol.sign_up(
+            self._user = userentrancecontrol.sign_up(
                 self.username, self.password
             )
-            self.is_authenticated = True
+            #self.is_authenticated = True
             # self.message = """Sign Up Success! Please continue to user dashboard,
                             #   and set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")

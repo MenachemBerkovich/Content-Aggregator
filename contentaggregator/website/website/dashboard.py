@@ -1,10 +1,11 @@
-from typing import List, Set, Any
+from typing import List, Set, Any, Dict
 
 import pynecone as pc
 
 from contentaggregator.lib.user.userproperties import collections
 from contentaggregator.lib.user.userauthentications import pwdhandler
 from contentaggregator.lib.feeds import feed
+from contentaggregator.lib.sqlmanagement import databaseapi
 from . import entrance
 
 
@@ -18,13 +19,13 @@ class DashboardUsernameState(entrance.EntranceState):
 
     @pc.var
     def updated_username(self) -> str:
-        if self.is_authenticated:
-            return entrance.CURRENT_USER.username
+        if self._user:
+            return self._user.username
 
     def save_new_username(self) -> None:
-        if self.is_authenticated:
+        if self._user:
             try:
-                entrance.CURRENT_USER.username = self.new_username
+                self._user.username = self.new_username
                 self.username_reset_message = "Saved Successfully:)"
             except Exception as e:
                 self.username_reset_message = str(e)
@@ -55,17 +56,15 @@ class DashboardPasswordState(entrance.EntranceState):
     password_reset_message: str = ""
 
     def save_new_password(self) -> None:
-        if not self.is_authenticated:
+        if not self._user:
             return
-        if not pwdhandler.is_same_password(
-            self.old_password, entrance.CURRENT_USER.password
-        ):
+        if not pwdhandler.is_same_password(self.old_password, self._user.password):
             self.password_reset_message = "Old password is incorrect"
         elif self.new_password != self.new_password_confirmation:
             self.password_reset_message = "New password has not been confirmed"
         elif self.old_password != self.new_password:
             try:
-                entrance.CURRENT_USER.password = self.new_password
+                self._user.password = self.new_password
                 self.password_reset_message = "Password changed successfully!"
                 self.old_password = ""
                 self.new_password = ""
@@ -104,21 +103,57 @@ class FeedsDashboardState(entrance.EntranceState):
     # _user_feeds = (
     #     "None" if not entrance.CURRENT_USER else entrance.CURRENT_USER.feeds.collection
     # )
-    _selected_feeds: Set[feed.Feed] = set()
-    feeds_reset_message: str = ""
+    _suggested_feeds: Set[feed.Feed] = databaseapi.get_feeds_set()
+    _candidates_to_delete: Dict[int, feed.Feed] = dict()
+    _candidates_to_add: Dict[int, feed.Feed] = dict()
+    feeds_reset_delete_message: str = ""
+    feeds_reset_add_message: str = ""
+    current_feed_id: int = -1
+
+    def set_current_feed_id(self, feed_id: int) -> None:
+        self.current_feed_id = feed_id
+
+    def set_feed_to_delete(self, is_selected: bool) -> None:
+        print(is_selected)
+        if (
+            is_selected
+        ):  # and self.current_feed_id not in [feed.id for feed in self._selected_feeds]:
+            self._candidates_to_delete[self.current_feed_id] = feed.FeedFactory.create(
+                self.current_feed_id
+            )
+        else:
+            self._candidates_to_delete.pop(self.current_feed_id)
 
     def delete_feeds(self) -> None:
-        if self.is_authenticated:
-            entrance.CURRENT_USER.feeds -= collections.UserSetController(
-                *self._selected_feeds
+        if self._user:
+            self._user.feeds -= collections.UserSetController(
+                *tuple(self._candidates_to_delete.values())
             )
-            self._selected_feeds.clear()
+            self._candidates_to_delete.clear()
 
-    def update_feed(self, feed_id: int) -> None:
-        if feed not in self._selected_feeds:
-            self._selected_feeds.add(feed)
+    def set_feed_to_add(self, is_selected: bool) -> None:
+        print(is_selected, self.current_feed_id)
+        if is_selected:
+            self._candidates_to_add[self.current_feed_id] = feed.FeedFactory.create(
+                self.current_feed_id
+            )
         else:
-            self._selected_feeds.remove(feed)
+            self._candidates_to_add.pop(self.current_feed_id)
+        print(self._candidates_to_add)
+
+    def add_feeds(self) -> None:
+        if self._user:
+            if self._user.feeds:
+                print(f"User feeds are: {self._user.feeds}")
+                self._user.feeds += collections.UserSetController(
+                    *tuple(self._candidates_to_add.values())
+                )
+            else:
+                self._user.feeds = collections.UserSetController(
+                    *tuple(self._candidates_to_add.values())
+                )
+            print(self._candidates_to_add)
+            self._candidates_to_add.clear()
 
     # def render_feed_box(self, feed: feed.Feed) -> pc.Component:
     #     return pc.hstack(
@@ -137,15 +172,15 @@ class FeedsDashboardState(entrance.EntranceState):
     @pc.var
     def has_feeds(self) -> bool:
         try:
-            bool_value = bool(entrance.CURRENT_USER.feeds)
+            bool_value = bool(self._user.feeds)
             if not bool_value:
-                self.feeds_reset_message = "Currently don't you have any feeds:( you can change it here below:)"
+                self.feeds_reset_delete_message = "Currently don't you have any feeds:( you can change it here below:)"
         except Exception:
             bool_value = False
         return bool_value
 
     @pc.var
-    def user_feeds(self) -> List[List[str]]:
+    def user_feeds(self) -> List[List[str | int]]:
         if self.has_feeds:
             return [
                 [
@@ -154,8 +189,36 @@ class FeedsDashboardState(entrance.EntranceState):
                     feed.description or feed.title,
                     feed.id,
                 ]
-                for feed in entrance.CURRENT_USER.feeds.collection
+                for feed in self._user.feeds.collection
             ]
+
+    @pc.var
+    def available_feeds(self) -> List[List[str | int]]:
+        if self._user:
+            return (
+                [
+                    [
+                        feed.image or "https://pynecone.io/black.png",
+                        feed.website,
+                        feed.title,
+                        feed.description or feed.title,
+                        feed.id,
+                    ]
+                    for feed in self._suggested_feeds
+                    if feed not in self._user.feeds.collection
+                ]
+                if self._user.feeds
+                else [
+                    [
+                        feed.image or "https://pynecone.io/black.png",
+                        feed.website,
+                        feed.title,
+                        feed.description or feed.title,
+                        feed.id,
+                    ]
+                    for feed in self._suggested_feeds
+                ]
+            )
 
     # def render_feeds(self) -> pc.Component:
     #     if entrance.EntranceState.is_authenticated:
@@ -181,7 +244,11 @@ class FeedsDashboardState(entrance.EntranceState):
 
     @pc.var
     def is_deletion_disabled(self) -> bool:
-        return bool(self._selected_feeds)
+        return not bool(self._candidates_to_delete)
+
+    @pc.var
+    def is_add_disabled(self) -> bool:
+        return not bool(self._candidates_to_add)
 
 
 # def render_row(feed: feed.Feed) -> pc.Component:
@@ -206,21 +273,32 @@ class FeedsDashboardState(entrance.EntranceState):
 #         )
 
 
-def render_feed_box(feed_details: List[str]) -> pc.Component:
+def render_feed_box(
+    feed_details: List[str | int], is_candidate_to_delete: bool
+) -> pc.Component:
+    print(feed_details)
+    _feed_image = str(feed_details[0])
+    _feed_website = str(feed_details[1])
+    _feed_title = feed_details[2]
+
+    print(feed_details)
     return pc.hstack(
         pc.link(
-            pc.image(src=feed_details[0] or "https://pynecone.io/black.png"),
-            href=feed_details[1],
+            _feed_title,
+            href=_feed_website,
         ),
-        pc.text(feed_details[2]),
+        # pc.link(feed_details[2], href=feed_details[1]),
         pc.checkbox(
             "Select",
             color_scheme="green",
-            # on_change=lambda feed_details: FeedsDashboardState().update_feed(
-            # feed_details[3]
+            on_change=FeedsDashboardState.set_feed_to_delete
+            if is_candidate_to_delete
+            else FeedsDashboardState.set_feed_to_add,
+        ),
+        on_mouse_over=lambda _: FeedsDashboardState.set_current_feed_id(
+            feed_details[4]
         ),
     )
-    # )
 
 
 def feeds_presentation() -> pc.Component:
@@ -229,7 +307,10 @@ def feeds_presentation() -> pc.Component:
         pc.cond(
             FeedsDashboardState.has_feeds,
             pc.vstack(
-                pc.foreach(FeedsDashboardState.user_feeds, render_feed_box),
+                pc.foreach(
+                    FeedsDashboardState.user_feeds,
+                    lambda feed_data: render_feed_box(feed_data, True),
+                ),
                 pc.button(
                     "Delete",
                     is_disabled=FeedsDashboardState.is_deletion_disabled,
@@ -237,7 +318,17 @@ def feeds_presentation() -> pc.Component:
                 ),
             ),
         ),
-        pc.text(FeedsDashboardState.feeds_reset_message),
+        pc.text(FeedsDashboardState.feeds_reset_delete_message),
+        pc.foreach(
+            FeedsDashboardState.available_feeds,
+            lambda feed_data: render_feed_box(feed_data, False),
+        ),
+        pc.button(
+            "Add",
+            is_disabled=FeedsDashboardState.is_add_disabled,
+            on_click=FeedsDashboardState.add_feeds,
+        ),
+        pc.text(FeedsDashboardState.feeds_reset_add_message),
     )
     #     pc.table(
     #         pc.thead(
@@ -278,7 +369,7 @@ def landing() -> pc.Component:
             pc.text("403:( You need"),
             pc.link("login", href="/login", as_="b"),
             pc.text(" or "),
-            pc.link("sign up", href="/signup", as_="b"),
+            pc.link(f"sign up", href="/signup", as_="b"),
         ),
     )
 
@@ -293,3 +384,5 @@ class DashboardState(entrance.EntranceState):
         DashboardPasswordState.new_password = ""
         DashboardPasswordState.new_password_confirmation = ""
         DashboardPasswordState.password_reset_message = ""
+        # reload feeds state
+        FeedsDashboardState.feeds_reset_delete_message = ""

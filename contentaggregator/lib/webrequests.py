@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 import requests
 
+from contentaggregator.lib import config
 
 def get_response(**request_params: Any) -> requests.Response:
     """Gets a response from any web source by requests library.
@@ -36,7 +37,7 @@ def get_response(**request_params: Any) -> requests.Response:
     try:
         with requests.Session() as session:
             request = requests.Request(**request_params)
-            response = session.send(session.prepare_request(request), timeout=5)
+            response = session.send(session.prepare_request(request), verify=config.SECURITY_CERTIFICATE)
             if not response.ok:
                 print(f"status code is:{response.status_code}")
     except requests.exceptions.RequestException as exc:

@@ -100,7 +100,7 @@ class User:
             )[0][0]:
                 # TODO for feed factory, we need send also the type of the feed. maybe by join query above,
                 # that will be collect information from feeds table also. (or if it will be better to know this by url it self)
-                data = (FeedFactory.create(feed) for feed in json.loads(db_response[0]))
+                data = (FeedFactory.create(feed) for feed in json.loads(db_response))
                 self._feeds = UserSetController(*data)
         return self._feeds
 
@@ -113,7 +113,8 @@ class User:
             feeds (UserSetController): An object contains an set of user feeds
             to reset by them.
         """
-        self._feeds = feeds
+        if not self._feeds or not self._feeds.last_operation:
+            self._feeds = feeds
         self._update_feeds()
 
     def _update_feeds(self) -> None:
@@ -121,9 +122,13 @@ class User:
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
-                config.USERS_DATA_COLUMNS.subscriptions: json.dumps(
-                    [feed.id for feed in self._feeds.collection]
+                config.USERS_DATA_COLUMNS.subscriptions: repr(
+                    json.dumps(
+                        [feed.id for feed in self._feeds.collection]
+                    )
                 )
+                if self._feeds
+                else None
             },
             condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )

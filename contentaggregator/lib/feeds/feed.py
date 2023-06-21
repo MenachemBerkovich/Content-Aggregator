@@ -72,6 +72,7 @@ class Feed(ABC):
                 and properties:
                 url        = {self.url},
                 rating    = {self.rating},
+                website = {self.website},
                 """
 
     # Intended: for allowing management of feeds set without multiplications.
@@ -341,11 +342,11 @@ class Feed(ABC):
         Returns:
             str: Feed content.
         """
-        return webrequests.get_response(method="get", url=self._url).text
+        return webrequests.get_response(method="get", url=self.url).text
 
     @abstractmethod
     def ensure_updated_stream(self) -> None:
-        """Ensures that the feed is updated per five minutes."""
+        """Ensures that the self._content_info[1] is updated."""
         pass
 
 
@@ -418,10 +419,12 @@ class XMLFeed(Feed):
     @property
     def website(self) -> str | bool:
         if self._website is None:
+            self.ensure_updated_stream()
             try:
                 self._website = self._parsed_feed.channel.link
             except AttributeError:
                 self._website = False
+        print(self._website)
         return self._website
 
 
@@ -484,6 +487,10 @@ class FeedFactory:
             Feed: An Feed object matched to the feed type.
 
         """
+        # The reason for this private \ protected class member access,
+        # is to make sure we don't create a sql query unnecessarily.
+        if feed_id in Feed._instances:
+            return Feed._instances[feed_id]
         feed_type = databaseapi.select(
             cols=config.FEEDS_DATA_COLUMNS.feed_type,
             table=config.DATABASE_TABLES_NAMES.feeds_table,
@@ -568,6 +575,7 @@ class XMLFeedItem(FeedItem):
     def image(self) -> str | bool:
         if "rss2" not in self._version:
             self._image = False
+            return
         if self._image is None:
             try:
                 self._image = self._item.media_thumbnail[0]["url"]
