@@ -1,20 +1,66 @@
+from typing import List
+
 import pynecone as pc
 
 from contentaggregator.lib.user.userauthentications import userentrancecontrol
-from contentaggregator.lib.user.userinterface import User
+from contentaggregator.lib.user import userinterface
+from contentaggregator.lib.feeds import feed
+from contentaggregator.lib.sqlmanagement import databaseapi
 
 
-CURRENT_USER: User | None = None
+# CURRENT_USER: User | None = None
+
+
+def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
+    return [
+        feed_obj.image or "https://pynecone.io/black.png",
+        feed_obj.title,
+        feed_obj.description or feed_obj.title,
+        feed_obj.id,
+    ]
+
+
+def prepare_user_feeds_details(
+    user: userinterface.User,
+) -> List[List[str | int]] | None:
+    if check_feeds_existence(user):
+        return [prepare_specific_feed_details(feed) for feed in user.feeds.collection]
+
+
+def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
+    suggested_feeds = databaseapi.get_feeds_set()
+    if user:
+        return (
+            [
+                prepare_specific_feed_details(feed)
+                for feed in suggested_feeds
+                if feed not in user.feeds.collection
+            ]
+            if check_feeds_existence(user)
+            else [prepare_specific_feed_details(feed) for feed in suggested_feeds]
+        )
+
+
+def check_feeds_existence(user: userinterface.User) -> bool:
+    try:
+        bool_value = bool(user.feeds)
+    except Exception:
+        bool_value = False
+    print("user feeds are:", user.feeds, "and", bool_value)
+    return bool_value
 
 
 class EntranceState(pc.State):
     """Manage user entrance process."""
-    _user: User | None = None
+    _user: userinterface.User | None = None
     username: str = ""
     password: str = ""
     message: str = ""
     is_clicked: bool = False
     # is_authenticated: bool = False
+    user_feeds: List[List[str | int]] | None = None
+    available_feeds: List[List[str | int]] | None = None
+    has_feeds: bool = False
 
     @pc.var    
     def is_authenticated(self) -> bool:
@@ -36,10 +82,15 @@ class EntranceState(pc.State):
         And redirect into the dashboard view page (if the login was successful).
         """
         self.is_clicked = True
+        self.message = ""
         try:
             self._user = userentrancecontrol.log_in(
                 self.username, self.password
             )
+            self.message = "Login successful!"
+            self.user_feeds = prepare_user_feeds_details(self._user)
+            self.available_feeds = prepare_user_available_feeds(self._user)
+            self.has_feeds = check_feeds_existence(self._user)
             # self.is_authenticated = True
             return pc.redirect("/dashboard")
         except Exception as e:
@@ -48,12 +99,13 @@ class EntranceState(pc.State):
     def sign_up(self) -> pc.event.EventSpec | None:
         """Sign up for new users."""
         self.is_clicked = True
+        self.message = ""
         try:
             self._user = userentrancecontrol.sign_up(
                 self.username, self.password
             )
             #self.is_authenticated = True
-            # self.message = """Sign Up Success! Please continue to user dashboard,
+            self.message = """Sign Up Success! Please white until user dashboard will be available,
                             #   and set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")
         except Exception as e:

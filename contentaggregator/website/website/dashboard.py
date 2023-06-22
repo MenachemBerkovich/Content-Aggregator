@@ -1,8 +1,10 @@
+# from __future__ import annotations
 from typing import List, Set, Any, Dict
 
 import pynecone as pc
 
 from contentaggregator.lib.user.userproperties import collections
+from contentaggregator.lib.user import userinterface
 from contentaggregator.lib.user.userauthentications import pwdhandler
 from contentaggregator.lib.feeds import feed
 from contentaggregator.lib.sqlmanagement import databaseapi
@@ -98,17 +100,78 @@ def password_presentation() -> pc.Component:
     )
 
 
+# def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
+#     return [
+#         feed_obj.image or "https://pynecone.io/black.png",
+#         feed_obj.title,
+#         feed_obj.description or feed_obj.title,
+#         feed_obj.id,
+#     ]
+
+
+# def prepare_user_feeds_details(
+#     user: userinterface.User,
+# ) -> List[List[str | int]] | None:
+#     if check_feeds_existence(user):
+#         return [prepare_specific_feed_details(feed) for feed in user.feeds.collection]
+
+
+# def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
+#     suggested_feeds = databaseapi.get_feeds_set()
+#     if user:
+#         return (
+#             [
+#                 prepare_specific_feed_details(feed)
+#                 for feed in suggested_feeds
+#                 if feed not in user.feeds.collection
+#             ]
+#             if check_feeds_existence(user)
+#             else [prepare_specific_feed_details(feed) for feed in suggested_feeds]
+#         )
+
+
+# def check_feeds_existence(user: userinterface.User) -> bool:
+#     try:
+#         bool_value = bool(user.feeds)
+#     except Exception:
+#         bool_value = False
+#     print("user feeds are:", user.feeds, "and", bool_value)
+#     return bool_value
+
+
 class FeedsDashboardState(entrance.EntranceState):
     # feed_selected: bool = False
     # _user_feeds = (
     #     "None" if not entrance.CURRENT_USER else entrance.CURRENT_USER.feeds.collection
     # )
-    _suggested_feeds: Set[feed.Feed] = databaseapi.get_feeds_set()
+    # _suggested_feeds: Set[feed.Feed] = databaseapi.get_feeds_set()
     _candidates_to_delete: Dict[int, feed.Feed] = dict()
     _candidates_to_add: Dict[int, feed.Feed] = dict()
-    feeds_reset_delete_message: str = ""
     feeds_reset_add_message: str = ""
     current_feed_id: int = -1
+    is_deletion_disabled: bool = True
+    is_addition_disabled: bool = True
+
+    @pc.var
+    def feeds_reset_delete_message(self) -> str:
+        return (
+            ""
+            if self.user_feeds
+            else "Currently don't you have any feeds:( you can change it here below:)"
+        )
+    # user_feeds: List[List[str | int]] | None = (
+    #     prepare_user_feeds_details(entrance.EntranceState._user)
+    #     if entrance.EntranceState._user
+    #     and check_feeds_existence(entrance.EntranceState._user)
+    #     else None
+    # )
+    # available_feeds: List[List[str | int]] | None = (
+    #     prepare_user_available_feeds(entrance.EntranceState._user)
+    #     if entrance.EntranceState._user
+    #     else None
+    # )
+
+    # has_feeds: bool = check_feeds_existence(entrance.EntranceState._user)
 
     def set_current_feed_id(self, feed_id: int) -> None:
         self.current_feed_id = feed_id
@@ -121,15 +184,26 @@ class FeedsDashboardState(entrance.EntranceState):
             self._candidates_to_delete[self.current_feed_id] = feed.FeedFactory.create(
                 self.current_feed_id
             )
+            self.is_deletion_disabled = False
         else:
             self._candidates_to_delete.pop(self.current_feed_id)
+            if not bool(self._candidates_to_delete):
+                self.is_deletion_disabled = True
 
     def delete_feeds(self) -> None:
         if self._user:
             self._user.feeds -= collections.UserSetController(
                 *tuple(self._candidates_to_delete.values())
             )
+            for feed_obj in self._candidates_to_delete.values():
+                self.user_feeds.remove(entrance.prepare_specific_feed_details(feed_obj))
+                self.available_feeds.append(
+                    entrance.prepare_specific_feed_details(feed_obj)
+                )
             self._candidates_to_delete.clear()
+            if not self._user.feeds:
+                self.has_feeds = False
+            self.is_deletion_disabled = True
 
     def set_feed_to_add(self, is_selected: bool) -> None:
         print(is_selected, self.current_feed_id)
@@ -137,8 +211,11 @@ class FeedsDashboardState(entrance.EntranceState):
             self._candidates_to_add[self.current_feed_id] = feed.FeedFactory.create(
                 self.current_feed_id
             )
+            self.is_addition_disabled = False
         else:
             self._candidates_to_add.pop(self.current_feed_id)
+            if not bool(self._candidates_to_add):
+                self.is_addition_disabled = True
         print(self._candidates_to_add)
 
     def add_feeds(self) -> None:
@@ -153,7 +230,20 @@ class FeedsDashboardState(entrance.EntranceState):
                     *tuple(self._candidates_to_add.values())
                 )
             print(self._candidates_to_add)
+            for feed_obj in self._candidates_to_add.values():
+                self.available_feeds.remove(
+                    entrance.prepare_specific_feed_details(feed_obj)
+                )
+                self.user_feeds.append(entrance.prepare_specific_feed_details(feed_obj))
             self._candidates_to_add.clear()
+            self.has_feeds = True
+            self.is_addition_disabled = True
+    
+    @classmethod
+    def is_feed_in_collection(
+        self, feed_details: List[str | int], collection: List[List[str | int]]
+    ) -> bool:
+        return feed_details in collection
 
     # def render_feed_box(self, feed: feed.Feed) -> pc.Component:
     #     return pc.hstack(
@@ -169,56 +259,59 @@ class FeedsDashboardState(entrance.EntranceState):
     #         ),
     #     )
 
-    @pc.var
-    def has_feeds(self) -> bool:
-        try:
-            bool_value = bool(self._user.feeds)
-            if not bool_value:
-                self.feeds_reset_delete_message = "Currently don't you have any feeds:( you can change it here below:)"
-        except Exception:
-            bool_value = False
-        return bool_value
+    # @pc.var
+    # def has_feeds(self) -> bool:
+    #     try:
+    #         bool_value = bool(self._user.feeds)
+    #         self.feeds_reset_delete_message = (
+    #             ""
+    #             if bool_value
+    #             else "Currently don't you have any feeds:( you can change it here below:)"
+    #         )
+    #     except Exception:
+    #         bool_value = False
+    #     return bool_value
 
-    @pc.var
-    def user_feeds(self) -> List[List[str | int]]:
-        if self.has_feeds:
-            return [
-                [
-                    feed.image or "https://pynecone.io/black.png",
-                    feed.title,
-                    feed.description or feed.title,
-                    feed.id,
-                ]
-                for feed in self._user.feeds.collection
-            ]
+    # @pc.var
+    # def user_feeds(self) -> List[List[str | int]]:
+    #     if self.has_feeds:
+    #         return [
+    #             [
+    #                 feed.image or "https://pynecone.io/black.png",
+    #                 feed.title,
+    #                 feed.description or feed.title,
+    #                 feed.id,
+    #             ]
+    #             for feed in self._user.feeds.collection
+    #         ]
 
-    @pc.var
-    def available_feeds(self) -> List[List[str | int]]:
-        if self._user:
-            return (
-                [
-                    [
-                        feed.image or "https://pynecone.io/black.png",
-                        feed.website,
-                        feed.title,
-                        feed.description or feed.title,
-                        feed.id,
-                    ]
-                    for feed in self._suggested_feeds
-                    if feed not in self._user.feeds.collection
-                ]
-                if self._user.feeds
-                else [
-                    [
-                        feed.image or "https://pynecone.io/black.png",
-                        feed.website,
-                        feed.title,
-                        feed.description or feed.title,
-                        feed.id,
-                    ]
-                    for feed in self._suggested_feeds
-                ]
-            )
+    # @pc.var
+    # def available_feeds(self) -> List[List[str | int]]:
+    #     if self._user:
+    #         return (
+    #             [
+    #                 [
+    #                     feed.image or "https://pynecone.io/black.png",
+    #                     feed.website,
+    #                     feed.title,
+    #                     feed.description or feed.title,
+    #                     feed.id,
+    #                 ]
+    #                 for feed in self._suggested_feeds
+    #                 if feed not in self._user.feeds.collection
+    #             ]
+    #             if self._user.feeds
+    #             else [
+    #                 [
+    #                     feed.image or "https://pynecone.io/black.png",
+    #                     feed.website,
+    #                     feed.title,
+    #                     feed.description or feed.title,
+    #                     feed.id,
+    #                 ]
+    #                 for feed in self._suggested_feeds
+    #             ]
+    #         )
 
     # def render_feeds(self) -> pc.Component:
     #     if entrance.EntranceState.is_authenticated:
@@ -242,13 +335,13 @@ class FeedsDashboardState(entrance.EntranceState):
     #         )
     #     return pc.text("login")
 
-    @pc.var
-    def is_deletion_disabled(self) -> bool:
-        return not bool(self._candidates_to_delete)
+    # @pc.var
+    # def is_deletion_disabled(self) -> bool:
+    #     return not bool(self._candidates_to_delete)
 
-    @pc.var
-    def is_add_disabled(self) -> bool:
-        return not bool(self._candidates_to_add)
+    # # @pc.var
+    # def is_add_disabled(self) -> bool:
+    #     return not bool(self._candidates_to_add)
 
 
 # def render_row(feed: feed.Feed) -> pc.Component:
@@ -274,29 +367,37 @@ class FeedsDashboardState(entrance.EntranceState):
 
 
 def render_feed_box(
-    feed_details: List[str | int], is_candidate_to_delete: bool
+    feed_details: List[str], is_candidate_to_delete: bool
 ) -> pc.Component:
     print(feed_details)
     _feed_image = str(feed_details[0])
     _feed_website = str(feed_details[1])
     _feed_title = feed_details[2]
+    _feed_id = feed_details[3]
 
     print(feed_details)
-    return pc.hstack(
-        pc.link(
-            _feed_title,
-            href=_feed_website,
+    return pc.cond(
+        FeedsDashboardState.is_feed_in_collection(
+            feed_details, FeedsDashboardState.user_feeds
+        )
+        if is_candidate_to_delete
+        else FeedsDashboardState.is_feed_in_collection(
+            feed_details, FeedsDashboardState.available_feeds
         ),
-        # pc.link(feed_details[2], href=feed_details[1]),
-        pc.checkbox(
-            "Select",
-            color_scheme="green",
-            on_change=FeedsDashboardState.set_feed_to_delete
-            if is_candidate_to_delete
-            else FeedsDashboardState.set_feed_to_add,
-        ),
-        on_mouse_over=lambda _: FeedsDashboardState.set_current_feed_id(
-            feed_details[4]
+        pc.hstack(
+            pc.link(
+                _feed_title,
+                href=_feed_website,
+            ),
+            # pc.link(feed_details[2], href=feed_details[1]),
+            pc.checkbox(
+                "Select",
+                color_scheme="green",
+                on_change=FeedsDashboardState.set_feed_to_delete
+                if is_candidate_to_delete
+                else FeedsDashboardState.set_feed_to_add,
+            ),
+            on_mouse_over=lambda _: FeedsDashboardState.set_current_feed_id(_feed_id),
         ),
     )
 
@@ -319,13 +420,16 @@ def feeds_presentation() -> pc.Component:
             ),
         ),
         pc.text(FeedsDashboardState.feeds_reset_delete_message),
-        pc.foreach(
-            FeedsDashboardState.available_feeds,
-            lambda feed_data: render_feed_box(feed_data, False),
+        pc.cond(
+            entrance.EntranceState.is_authenticated,
+            pc.foreach(
+                FeedsDashboardState.available_feeds,
+                lambda feed_data: render_feed_box(feed_data, False),
+            ),
         ),
         pc.button(
             "Add",
-            is_disabled=FeedsDashboardState.is_add_disabled,
+            is_disabled=FeedsDashboardState.is_addition_disabled,
             on_click=FeedsDashboardState.add_feeds,
         ),
         pc.text(FeedsDashboardState.feeds_reset_add_message),
@@ -386,3 +490,5 @@ class DashboardState(entrance.EntranceState):
         DashboardPasswordState.password_reset_message = ""
         # reload feeds state
         FeedsDashboardState.feeds_reset_delete_message = ""
+        FeedsDashboardState.is_addition_disabled = True
+        FeedsDashboardState.is_deletion_disabled = True
