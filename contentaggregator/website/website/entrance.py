@@ -8,9 +8,6 @@ from contentaggregator.lib.feeds import feed
 from contentaggregator.lib.sqlmanagement import databaseapi
 
 
-# CURRENT_USER: User | None = None
-
-
 def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
     return [
         feed_obj.image or "https://pynecone.io/black.png",
@@ -46,7 +43,6 @@ def check_feeds_existence(user: userinterface.User) -> bool:
         bool_value = bool(user.feeds)
     except Exception:
         bool_value = False
-    print("user feeds are:", user.feeds, "and", bool_value)
     return bool_value
 
 
