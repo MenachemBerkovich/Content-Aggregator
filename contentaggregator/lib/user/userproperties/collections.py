@@ -6,7 +6,7 @@ which operations we need to do in the database by the User interface.
 """
 
 from __future__ import annotations
-from typing import Tuple, Set, Dict
+from typing import Tuple, Set, Dict, Any
 from abc import ABC, abstractmethod
 
 from contentaggregator.lib.common import ObjectResetOperationClassifier
@@ -95,6 +95,9 @@ class UserCollectionResetController(ABC):
     def __len__(self):
         return len(self.collection)
 
+    def __contains__(self, key: Any) -> bool:
+        return key in self.collection
+
 
 class UserSetController(UserCollectionResetController):
     """Concrete class for mange user collections represented as a sets,
@@ -117,7 +120,7 @@ class UserDictController(UserCollectionResetController):
 
     def _create_collection(
         self, collection: Dict[str, Address]
-    ) -> Dict[Address, Address]:
+    ) -> Dict[str, Address]:
         return collection
 
     def __isub__(self, other: UserDictController):

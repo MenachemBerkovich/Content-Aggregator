@@ -1,103 +1,10 @@
-# from __future__ import annotations
-from typing import List, Set, Any, Dict
+from typing import Dict, List
 
 import pynecone as pc
 
-from contentaggregator.lib.user.userproperties import collections
-from contentaggregator.lib.user import userinterface
-from contentaggregator.lib.user.userauthentications import pwdhandler
 from contentaggregator.lib.feeds import feed
-from contentaggregator.lib.sqlmanagement import databaseapi
+from contentaggregator.lib.user.userproperties import collections
 from . import entrance
-
-
-class DashboardUsernameState(entrance.EntranceState):
-    new_username: str = ""
-    username_reset_message: str = ""
-    # @pc.var
-    # def encrypted_password(self) -> str:
-    #     if self.is_authenticated:
-    #         return entrance.CURRENT_USER.password
-
-    @pc.var
-    def updated_username(self) -> str:
-        if self._user:
-            return self._user.username
-
-    def save_new_username(self) -> None:
-        if self._user:
-            try:
-                self._user.username = self.new_username
-                self.username_reset_message = "Saved Successfully:)"
-            except Exception as e:
-                self.username_reset_message = str(e)
-
-
-def username_presentation() -> pc.Component:
-    return pc.vstack(
-        pc.text("User name:", as_="b"),
-        pc.hstack(
-            pc.input(
-                place_holder="New username",
-                default_value=DashboardUsernameState.updated_username,
-                on_change=DashboardUsernameState.set_new_username,
-            ),
-            pc.button(
-                "Change",
-                on_click=DashboardUsernameState.save_new_username,
-            ),
-        ),
-        pc.text(DashboardUsernameState.username_reset_message),
-    )
-
-
-class DashboardPasswordState(entrance.EntranceState):
-    old_password: str = ""
-    new_password: str = ""
-    new_password_confirmation: str = ""
-    password_reset_message: str = ""
-
-    def save_new_password(self) -> None:
-        if not self._user:
-            return
-        if not pwdhandler.is_same_password(self.old_password, self._user.password):
-            self.password_reset_message = "Old password is incorrect"
-        elif self.new_password != self.new_password_confirmation:
-            self.password_reset_message = "New password has not been confirmed"
-        elif self.old_password != self.new_password:
-            try:
-                self._user.password = self.new_password
-                self.password_reset_message = "Password changed successfully!"
-                self.old_password = ""
-                self.new_password = ""
-                self.new_password_confirmation = ""
-            except Exception as e:
-                self.password_reset_message = str(e)
-
-
-def password_presentation() -> pc.Component:
-    return pc.box(
-        pc.vstack(
-            pc.text("Password:", as_="b"),
-            pc.input(
-                value=DashboardPasswordState.old_password,
-                placeholder="Old Password",
-                on_change=DashboardPasswordState.set_old_password,
-            ),
-            pc.input(
-                value=DashboardPasswordState.new_password,
-                placeholder="New Password",
-                on_change=DashboardPasswordState.set_new_password,
-            ),
-            pc.input(
-                value=DashboardPasswordState.new_password_confirmation,
-                placeholder="Confirm New Password",
-                on_change=DashboardPasswordState.set_new_password_confirmation,
-            ),
-            pc.button("Change", on_click=DashboardPasswordState.save_new_password),
-        ),
-        pc.text(DashboardPasswordState.password_reset_message, as_="b"),
-    )
 
 
 class FeedsDashboardState(entrance.EntranceState):
@@ -141,6 +48,7 @@ class FeedsDashboardState(entrance.EntranceState):
                 if not self._user.feeds:
                     self.has_feeds = False
                 self.is_deletion_disabled = True
+                self.feeds_reset_add_message = ""
                 self.feeds_reset_delete_message = (
                     "Feeds deleted successfully! please refresh to continue..."
                 )
@@ -174,13 +82,11 @@ class FeedsDashboardState(entrance.EntranceState):
                         entrance.prepare_specific_feed_details(feed_obj)
                     )
                     new_feed_details = entrance.prepare_specific_feed_details(feed_obj)
-                    if bool(self.user_feeds):
-                        self.user_feeds.append(new_feed_details)
-                    else:
-                        self.user_feeds = [new_feed_details]
+                    self.user_feeds.append(new_feed_details)
                 self._candidates_to_add.clear()
                 self.has_feeds = True
                 self.is_addition_disabled = True
+                self.feeds_reset_delete_message = ""
                 self.feeds_reset_add_message = (
                     "Feeds added successfully! please refresh to continue..."
                 )
@@ -189,9 +95,19 @@ class FeedsDashboardState(entrance.EntranceState):
 
     @classmethod
     def is_feed_in_collection(
-        self, feed_details: List[str | int], collection: List[List[str | int]]
+        cls, feed_details: List[str | int], collection: List[List[str | int]]
     ) -> bool:
         return feed_details in collection
+
+    @classmethod
+    def is_feed_should_appear(
+        cls, feed_details: List[str | int], is_candidate_to_delete: bool
+    ) -> bool:
+        return (
+            feed_details not in cls.available_feeds
+            if is_candidate_to_delete
+            else feed_details not in cls.user_feeds
+        )
 
 
 def render_feed_box(
@@ -208,7 +124,7 @@ def render_feed_box(
         )
         if is_candidate_to_delete
         else FeedsDashboardState.is_feed_in_collection(
-            feed_details, FeedsDashboardState.available_feeds
+            feed_details, FeedsDashboardState.available_feeds,
         ),
         pc.hstack(
             pc.link(
@@ -275,47 +191,3 @@ def feeds_presentation() -> pc.Component:
         ),
         pc.text(FeedsDashboardState.feeds_reset_add_message),
     )
-
-
-def addresses_presentation() -> pc.Component:
-    return pc.text("addresses")
-
-
-def sending_time_presentation() -> pc.Component:
-    return pc.text("sending_time")
-
-
-def landing() -> pc.Component:
-    return pc.cond(
-        entrance.EntranceState.is_authenticated,
-        pc.vstack(
-            username_presentation(),
-            password_presentation(),
-            feeds_presentation(),
-            addresses_presentation(),
-            sending_time_presentation(),
-        ),
-        pc.hstack(
-            pc.text("403:( You need"),
-            pc.link("login", href="/login", as_="b"),
-            pc.text(" or "),
-            pc.link(f"sign up", href="/signup", as_="b"),
-        ),
-    )
-
-
-class DashboardState(entrance.EntranceState):
-    def reload_dashboard(self) -> None:
-        # reload username state
-        DashboardUsernameState.new_username = ""
-        DashboardUsernameState.username_reset_message = ""
-        # reload password state
-        DashboardPasswordState.old_password = ""
-        DashboardPasswordState.new_password = ""
-        DashboardPasswordState.new_password_confirmation = ""
-        DashboardPasswordState.password_reset_message = ""
-        # reload feeds state
-        FeedsDashboardState.feeds_reset_delete_message = ""
-        FeedsDashboardState.feeds_reset_add_message = ""
-        FeedsDashboardState.is_addition_disabled = True
-        FeedsDashboardState.is_deletion_disabled = True

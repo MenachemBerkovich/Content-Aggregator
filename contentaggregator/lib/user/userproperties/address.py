@@ -29,7 +29,7 @@ class Address(ABC):
         if not is_valid_flag and not self._is_valid():
             cls_name = type(self).__name__
             raise ValueError(
-                f"Invalid {cls_name} {self.address}, please enter a valid {cls_name}."
+                f"Invalid {cls_name} {repr(self.address)}, please enter a valid {cls_name}."
             )
 
     def __eq__(self, other: Address) -> bool:
@@ -73,7 +73,12 @@ class NumberAddress(Address):
         is_verified_flag: bool | None = None,
     ):
         number_obj: phonenumbers.PhoneNumber = phonenumbers.parse(phone_number)
-        super().__init__(number_obj, is_valid_flag, is_verified_flag)
+        print(number_obj)
+        super().__init__(
+            f"+{str(number_obj.country_code)}{str(number_obj.national_number)}",
+            is_valid_flag,
+            is_verified_flag,
+        )
 
     def _is_valid(self) -> bool:
         """Check if a self.number is also valid number for a particular region.
@@ -87,11 +92,9 @@ class NumberAddress(Address):
             method="get",
             url=config.VERIPHONE_VALIDATOR_URL,
             headers=config.create_rapidAPI_request_headers(config.VERIPHONE_RAPID_NAME),
-            params={
-                "phone": f"+{self.address.country_code}{self.address.national_number}"
-            },
+            params={"phone": self.address},
         )
-        return json.loads(response.text).get("phone_valid", None)
+        return bool(json.loads(response.text).get("phone_valid", None))
 
     # Undecorated as abstractmethod, because has no effect
     # [this class can not inherit from ABC only, must be inherited from Address also]
@@ -115,7 +118,7 @@ class WhatsAppAddress(NumberAddress):
             headers=config.create_rapidAPI_request_headers(
                 config.WHATSAPP_VALIDATOR_NAME
             ),
-            params={"phone": self.address.country_code + self.address.national_number},
+            params={"phone": self.address},
         )
         return json.loads(response.text).get("valid", None)
 
@@ -145,11 +148,13 @@ class PhoneAddress(NumberAddress):
 class SMSAddress(NumberAddress):
     """class for SMS addresses  - Hopefully it will be developed later"""
 
+    def _is_valid(self) -> bool:
+        raise NotImplementedError("SMS addresses are not supported yet(:")
+
     pass
     # need to implement: __init__ method like in it's siblings,
     # is_valid staticmethod and return NumberAddress.is_valid(number)
     # + another condition if it's can receive SMS messages.
-    # need to update the users table for new column called "sms_number".
 
 
 class EmailAddress(Address):

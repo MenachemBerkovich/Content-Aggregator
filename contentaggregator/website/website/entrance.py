@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Dict, Set
+from contextlib import suppress
 
 import pynecone as pc
 
+from contentaggregator.lib import config
 from contentaggregator.lib.user.userauthentications import userentrancecontrol
 from contentaggregator.lib.user import userinterface
 from contentaggregator.lib.feeds import feed
@@ -48,30 +50,61 @@ def check_feeds_existence(user: userinterface.User) -> bool:
 
 class EntranceState(pc.State):
     """Manage user entrance process."""
+
     _user: userinterface.User | None = None
     username: str = ""
     password: str = ""
     message: str = ""
     is_clicked: bool = False
-    # is_authenticated: bool = False
-    user_feeds: List[List[str | int]] | None = None
-    available_feeds: List[List[str | int]] | None = None
+    #
     has_feeds: bool = False
+    user_feeds: List[List[str | int]] = []
+    available_feeds: List[List[str | int]] = []
+    #
+    has_addresses: bool = False
+    email_address: str = ""
+    whatsapp_address: str = ""
+    phone_address: str = ""
+    sms_address: str = ""
+    is_authenticated: bool = False
 
-    @pc.var    
-    def is_authenticated(self) -> bool:
-        return bool(self._user)
-    
     def reload(self) -> None:
         """Needed for '/signin' or '/login' page on_load attrs."""
         self._user = None
         self.username = ""
         self.password = ""
-        # Describe state like is not clicked.
         self.is_clicked = False
-        # Determine message to be nothing.
         self.message = ""
-        #self.is_authenticated = False
+        self.is_authenticated = False
+
+    def initialize_user_feeds(self) -> None:
+        self.user_feeds = prepare_user_feeds_details(self._user)
+        self.available_feeds = prepare_user_available_feeds(self._user)
+        self.has_feeds = check_feeds_existence(self._user)
+        self.has_addresses = bool(self._user.addresses)
+
+    def initialize_user_addresses(self) -> None:
+        if self.has_addresses:
+            email_address_obj = self._user.addresses.collection.get(
+                config.ADDRESSES_KEYS.email, None
+            )
+            self.email_address = email_address_obj.address if email_address_obj else ""
+            whatsapp_address_obj = self._user.addresses.collection.get(
+                config.ADDRESSES_KEYS.whatsapp, None
+            )
+            self.whatsapp_address = (
+                whatsapp_address_obj.address if whatsapp_address_obj else ""
+            )
+            sms_address_obj = self._user.addresses.collection.get(
+                config.ADDRESSES_KEYS.sms, None
+            )
+            self.sms_address = sms_address_obj.address if sms_address_obj else ""
+            phone_address_obj = self._user.addresses.collection.get(
+                config.ADDRESSES_KEYS.phone, None
+            )
+            self.phone_address = (
+                phone_address_obj.address if phone_address_obj else ""
+            )
 
     def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.
@@ -80,14 +113,11 @@ class EntranceState(pc.State):
         self.is_clicked = True
         self.message = ""
         try:
-            self._user = userentrancecontrol.log_in(
-                self.username, self.password
-            )
+            self._user = userentrancecontrol.log_in(self.username, self.password)
+            self.initialize_user_feeds()
+            self.initialize_user_addresses()
+            self.is_authenticated = True
             self.message = "Login successful!"
-            self.user_feeds = prepare_user_feeds_details(self._user)
-            self.available_feeds = prepare_user_available_feeds(self._user)
-            self.has_feeds = check_feeds_existence(self._user)
-            # self.is_authenticated = True
             return pc.redirect("/dashboard")
         except Exception as e:
             self.message = str(e)
@@ -97,10 +127,8 @@ class EntranceState(pc.State):
         self.is_clicked = True
         self.message = ""
         try:
-            self._user = userentrancecontrol.sign_up(
-                self.username, self.password
-            )
-            #self.is_authenticated = True
+            self._user = userentrancecontrol.sign_up(self.username, self.password)
+            self.is_authenticated = True
             self.message = """Sign Up Success! Please white until user dashboard will be available,
                             #   and set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")
@@ -136,6 +164,7 @@ def log_in_session() -> pc.Component:
         ),
         pc.input(
             placeholder="Your password...",
+            type_="password",
             on_blur=EntranceState.set_password,
             color="#676767",
             type="username",
@@ -181,6 +210,7 @@ def sign_up_session() -> pc.Component:
         ),
         pc.input(
             placeholder="Choose your password...",
+            type_="password",
             on_blur=EntranceState.set_password,
             color="#676767",
             type="username",
@@ -205,39 +235,3 @@ def sign_up_session() -> pc.Component:
         should_wrap_children=True,
         spacing="1em",
     )
-
-
-# class DashboardState(EntranceState):
-#     @pc.var
-#     def username(self) -> str:
-#         return CURRENT_USER.username if CURRENT_USER else ""
-
-
-# def username_presentation() -> pc.Component:
-#     return pc.hstack(pc.text("User name:", as_="b"), pc.text(DashboardState.username))
-
-
-# def password_presentation() -> pc.Component:
-#     return pc.text("password")
-
-
-# def feeds_presentation() -> pc.Component:
-#     return pc.text("feeds")
-
-
-# def addresses_presentation() -> pc.Component:
-#     return pc.text("addresses")
-
-
-# def sending_time_presentation() -> pc.Component:
-#     return pc.text("sending_time")
-
-
-# def landing() -> pc.Component:
-#     return pc.vstack(
-#         username_presentation(),
-#         password_presentation(),
-#         feeds_presentation(),
-#         addresses_presentation(),
-#         sending_time_presentation(),
-#     )

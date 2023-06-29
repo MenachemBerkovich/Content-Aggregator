@@ -4,6 +4,7 @@
 from __future__ import annotations
 import datetime
 import json
+import contextlib
 
 from contentaggregator.lib.sqlmanagement import databaseapi
 from contentaggregator.lib.feeds.feed import FeedFactory
@@ -14,7 +15,7 @@ from contentaggregator.lib.user.userauthentications.validators import (
     PRELIMINARY_USERNAME_CHECKERS,
     check_username_existence,
 )
-from contentaggregator.lib.user.userproperties.address import AddressFactory
+from contentaggregator.lib.user.userproperties import address
 from contentaggregator.lib.user.userproperties.time import Time, Timing
 from contentaggregator.lib.user.userproperties.collections import (
     UserDictController,
@@ -123,9 +124,7 @@ class User:
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
                 config.USERS_DATA_COLUMNS.subscriptions: repr(
-                    json.dumps(
-                        [feed.id for feed in self._feeds.collection]
-                    )
+                    json.dumps([feed.id for feed in self._feeds.collection])
                 )
                 if self._feeds
                 else None
@@ -163,9 +162,10 @@ class User:
                 condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
                 desired_rows_num=1,
             )[0][0]:
-                response_info = json.loads(db_response[0])
+                response_info = json.loads(db_response)
+                print(response_info)
                 data = {
-                    key: AddressFactory.create(key, value)
+                    key: address.AddressFactory.create(key, value)
                     for key, value in response_info.items()
                 }
                 self._addresses = UserDictController(**data)
@@ -180,7 +180,8 @@ class User:
             addresses (UserDictController): An object contains an dict of user addresses
             to reset by them.
         """
-        self._addresses = addresses
+        if not self._addresses or not self._addresses.last_operation:
+            self._addresses = addresses
         self._update_addresses()
 
     def _update_addresses(self) -> None:
@@ -188,13 +189,18 @@ class User:
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
-                config.USERS_DATA_COLUMNS.addresses: json.dumps(
-                    {
-                        address_type: address.address
-                        for address_type, address in self._addresses.collection.items()
-                    }
+                config.USERS_DATA_COLUMNS.addresses: repr(
+                    json.dumps(
+                        {
+                            address_type: address.address
+                            for address_type, address in self._addresses.collection.items()
+                        }
+                    )
                 )
+                if self._addresses
+                else None
             },
+            condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
         )
 
     def is_registered_at(self, addresses: UserDictController) -> bool:
@@ -205,7 +211,14 @@ class User:
         Returns:
             bool: True if the user is registered at the given addresses, False otherwise.
         """
-        return addresses == self._addresses if self._addresses else False
+        return (
+            all(
+                item in self.addresses.collection.items()
+                for item in addresses.collection.items()
+            )
+            if self.addresses
+            else False
+        )
 
     @property
     def username(self) -> str:
