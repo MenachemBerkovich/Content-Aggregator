@@ -17,6 +17,19 @@ class FeedsDashboardState(entrance.EntranceState):
     feeds_reset_add_message: str = ""
     feeds_reset_delete_message: str = ""
 
+    @pc.var
+    def has_feeds(self) -> bool:
+        try:
+            bool_value = bool(self._user.feeds)
+        except Exception:
+            bool_value = False
+        return bool_value
+
+    @pc.var
+    def is_available_feeds_exists(self) -> bool:
+        print(self.available_feeds)
+        return bool(self.available_feeds)
+
     def set_current_feed_id(self, feed_id: int) -> None:
         self.current_feed_id = feed_id
 
@@ -92,12 +105,27 @@ class FeedsDashboardState(entrance.EntranceState):
                 )
             except Exception as e:
                 self.feeds_reset_add_message = str(e)
+    
+    @classmethod
+    @pc.var
+    def is_subscribed_to(cls, feed_id: int) -> bool:
+        try:
+            return feed_id in cls._user.feeds.collection
+        except Exception:
+            return False
 
+    @classmethod
+    @pc.var
+    def is_not_subscribed_to(cls, feed_id: int) -> bool:
+        return not cls.is_subscribed_to(feed_id)
     @classmethod
     def is_feed_in_collection(
         cls, feed_details: List[str | int], collection: List[List[str | int]]
     ) -> bool:
-        return feed_details in collection
+        try:
+            return feed_details[3] in cls._user.feeds.collection
+        except Exception:
+            return False
 
     @classmethod
     def is_feed_should_appear(
@@ -109,6 +137,11 @@ class FeedsDashboardState(entrance.EntranceState):
             else feed_details not in cls.user_feeds
         )
 
+def check_feed_existance(feed_id: int, user) -> bool:
+    try: 
+        return feed_id in user.feeds
+    except Exception:
+        return False
 
 def render_feed_box(
     feed_details: List[str], is_candidate_to_delete: bool
@@ -117,27 +150,33 @@ def render_feed_box(
     _feed_website = str(feed_details[1])
     _feed_title = feed_details[2]
     _feed_id = feed_details[3]
-
-    return pc.cond(
-        FeedsDashboardState.is_feed_in_collection(
-            feed_details, FeedsDashboardState.user_feeds
-        )
+    button_event_handler = (
+        FeedsDashboardState.update_candidates_to_delete
         if is_candidate_to_delete
-        else FeedsDashboardState.is_feed_in_collection(
-            feed_details, FeedsDashboardState.available_feeds,
-        ),
+        else FeedsDashboardState.update_candidates_to_add
+    )
+    condition = (
+        check_feed_existance(_feed_id, FeedsDashboardState._user)        if is_candidate_to_delete
+        else _feed_id in FeedsDashboardState._candidates_to_add
+    )
+    # try:
+    #     condition = _feed_id in FeedsDashboardState._user.feeds if is_candidate_to_delete else _feed_id not in FeedsDashboardState._user.feeds 
+    # except Exception:
+    #     condition = False
+        # if is_candidate_to_delete
+        # else not FeedsDashboardState.is_feed_in_collection(
+        #     feed_details,
+        #     FeedsDashboardState.available_feeds
+        # )
+    # )
+    return pc.cond(
+        condition,
         pc.hstack(
             pc.link(
                 _feed_title,
                 href=_feed_website,
             ),
-            pc.checkbox(
-                "Select",
-                color_scheme="green",
-                on_change=FeedsDashboardState.update_candidates_to_delete
-                if is_candidate_to_delete
-                else FeedsDashboardState.update_candidates_to_add,
-            ),
+            pc.checkbox("Select", color_scheme="green", on_change=button_event_handler),
             on_mouse_over=lambda _: FeedsDashboardState.set_current_feed_id(_feed_id),
         ),
     )
@@ -171,7 +210,7 @@ def feeds_presentation() -> pc.Component:
         pc.text("Available feeds:", as_="b"),
         pc.cond(
             # entrance.EntranceState.is_authenticated,
-            bool(FeedsDashboardState.available_feeds),
+            FeedsDashboardState.is_available_feeds_exists,
             pc.vstack(
                 pc.foreach(
                     FeedsDashboardState.available_feeds,

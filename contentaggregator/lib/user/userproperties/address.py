@@ -57,12 +57,16 @@ class Address(ABC):
 
 
 class NumberAddress(Address):
-    """A middle class bet ween Address and it's fool implementors.
+    """A middle class between Address and it's fool implementors.
     Intended for numbers subscriptions.
     can't be instantiated directly."""
 
     def __new__(cls, *args, **kwargs):
-        if cls is NumberAddress:
+        # Temporary
+        if cls is SMSAddress:
+            raise NotImplementedError("SMS numbers are not supported yet.")
+        # Regular
+        elif cls is NumberAddress:
             raise TypeError(f"only children of '{cls.__name__}' may be instantiated")
         return object.__new__(cls)
 
@@ -94,6 +98,7 @@ class NumberAddress(Address):
             headers=config.create_rapidAPI_request_headers(config.VERIPHONE_RAPID_NAME),
             params={"phone": self.address},
         )
+        print(response.text)
         return bool(json.loads(response.text).get("phone_valid", None))
 
     # Undecorated as abstractmethod, because has no effect
@@ -118,8 +123,9 @@ class WhatsAppAddress(NumberAddress):
             headers=config.create_rapidAPI_request_headers(
                 config.WHATSAPP_VALIDATOR_NAME
             ),
-            params={"phone": self.address},
+            params={"phone": self.address[1:]},
         )
+        print(response.text)
         return json.loads(response.text).get("valid", None)
 
     def send_message(self, *feeds: Feed) -> None:
@@ -151,7 +157,9 @@ class SMSAddress(NumberAddress):
     def _is_valid(self) -> bool:
         raise NotImplementedError("SMS addresses are not supported yet(:")
 
-    pass
+    def send_message(self, *feeds: Feed) -> None:
+        pass
+
     # need to implement: __init__ method like in it's siblings,
     # is_valid staticmethod and return NumberAddress.is_valid(number)
     # + another condition if it's can receive SMS messages.
