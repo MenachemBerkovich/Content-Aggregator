@@ -16,7 +16,7 @@ def landing() -> pc.Component:
             password_management.password_presentation(),
             feeds_management.feeds_presentation(),
             addresses_management.addresses_presentation(),
-            # sending_time_management.sending_time_presentation(),
+            sending_time_management.sending_time_presentation(),
         ),
         pc.hstack(
             pc.text("403:( You need"),

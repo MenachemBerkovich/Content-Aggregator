@@ -358,8 +358,8 @@ class User:
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.users_table,
             updates_dict={
-                config.USERS_DATA_COLUMNS.sending_time: time.sending_time.strftime(
-                    "%H:%M"
+                config.USERS_DATA_COLUMNS.sending_time: repr(
+                    time.sending_time.strftime("%H:%M")
                 ),
                 config.USERS_DATA_COLUMNS.sending_schedule: time.sending_schedule.value,
             },

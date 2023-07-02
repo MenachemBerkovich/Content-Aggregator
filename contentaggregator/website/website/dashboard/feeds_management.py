@@ -6,11 +6,14 @@ from contentaggregator.lib.feeds import feed
 from contentaggregator.lib.user.userproperties import collections
 from . import entrance
 
+feed_to_check: int = -1
+
 
 class FeedsDashboardState(entrance.EntranceState):
     _candidates_to_delete: Dict[int, feed.Feed] = dict()
     _candidates_to_add: Dict[int, feed.Feed] = dict()
     feeds_reset_add_message: str = ""
+    feed_to_check: int = -1
     current_feed_id: int = -1
     is_deletion_disabled: bool = True
     is_addition_disabled: bool = True
@@ -57,6 +60,8 @@ class FeedsDashboardState(entrance.EntranceState):
                     self.available_feeds.append(
                         entrance.prepare_specific_feed_details(feed_obj)
                     )
+                    self.available_feeds_status[feed_obj.id] = True
+                    self.user_feeds_status[feed_obj.id] = False
                 self._candidates_to_delete.clear()
                 if not self._user.feeds:
                     self.has_feeds = False
@@ -65,6 +70,7 @@ class FeedsDashboardState(entrance.EntranceState):
                 self.feeds_reset_delete_message = (
                     "Feeds deleted successfully! please refresh to continue..."
                 )
+                self.initialize_user_feeds()
             except Exception as e:
                 self.feeds_reset_delete_message = str(e)
 
@@ -96,6 +102,9 @@ class FeedsDashboardState(entrance.EntranceState):
                     )
                     new_feed_details = entrance.prepare_specific_feed_details(feed_obj)
                     self.user_feeds.append(new_feed_details)
+                    self.user_feeds_status[feed_obj.id] = True
+                    self.available_feeds_status[feed_obj.id] = False
+               # self.initialize_user_feeds()
                 self._candidates_to_add.clear()
                 self.has_feeds = True
                 self.is_addition_disabled = True
@@ -105,23 +114,42 @@ class FeedsDashboardState(entrance.EntranceState):
                 )
             except Exception as e:
                 self.feeds_reset_add_message = str(e)
-    
-    @classmethod
-    @pc.var
-    def is_subscribed_to(cls, feed_id: int) -> bool:
-        try:
-            return feed_id in cls._user.feeds.collection
-        except Exception:
-            return False
 
-    @classmethod
     @pc.var
-    def is_not_subscribed_to(cls, feed_id: int) -> bool:
-        return not cls.is_subscribed_to(feed_id)
+    def has_specific_feed(self) -> bool:
+        print(self.feed_to_check)
+        return self.feed_to_check in self._candidates_to_delete
+
+    @pc.var
+    def has_no_specific_feed(self) -> bool:
+        print(self.feed_to_check)
+        return self.feed_to_check not in self._candidates_to_delete
+
+    # @classmethod
+    # @pc.var
+    # def is_subscribed_to(cls, feed_id: int) -> bool:
+    #     try:
+    #         return feed_id in cls._user.feeds.collection
+    #     except Exception:
+    #         return False
+
+    # @classmethod
+    # @pc.var
+    # def is_not_subscribed_to(cls, feed_id: int) -> bool:
+    #     return not cls.is_subscribed_to(feed_id)
     @classmethod
     def is_feed_in_collection(
         cls, feed_details: List[str | int], collection: List[List[str | int]]
     ) -> bool:
+        """_summary_
+
+        Args:
+            feed_details (List[str  |  int]): _description_
+            collection (List[List[str  |  int]]): _description_
+
+        Returns:
+            bool: _description_
+        """
         try:
             return feed_details[3] in cls._user.feeds.collection
         except Exception:
@@ -137,14 +165,28 @@ class FeedsDashboardState(entrance.EntranceState):
             else feed_details not in cls.user_feeds
         )
 
+
+def has_this_feed(feed_id: int) -> pc.vars.ComputedVar:
+    FeedsDashboardState.feed_to_check = feed_id
+    return FeedsDashboardState.has_specific_feed
+
+
+def has_no_this_feed(feed_id: int) -> pc.vars.ComputedVar:
+    FeedsDashboardState.feed_to_check = feed_id
+    return FeedsDashboardState.has_no_specific_feed
+
+
 def check_feed_existance(feed_id: int, user) -> bool:
-    try: 
+    try:
         return feed_id in user.feeds
     except Exception:
         return False
 
+
 def render_feed_box(
-    feed_details: List[str], is_candidate_to_delete: bool
+    feed_details: List[str],
+    condition: pc.vars.Var,
+    is_candidate_to_delete: bool,
 ) -> pc.Component:
     _feed_image = str(feed_details[0])
     _feed_website = str(feed_details[1])
@@ -155,19 +197,20 @@ def render_feed_box(
         if is_candidate_to_delete
         else FeedsDashboardState.update_candidates_to_add
     )
-    condition = (
-        check_feed_existance(_feed_id, FeedsDashboardState._user)        if is_candidate_to_delete
-        else _feed_id in FeedsDashboardState._candidates_to_add
-    )
+    # condition = (
+    #     lambda: FeedsDashboardState.user_feeds_status[_feed_id]
+    #     if is_candidate_to_delete
+    #     else lambda: FeedsDashboardState.available_feeds_status[_feed_id]
+    # )
     # try:
-    #     condition = _feed_id in FeedsDashboardState._user.feeds if is_candidate_to_delete else _feed_id not in FeedsDashboardState._user.feeds 
+    #     condition = _feed_id in FeedsDashboardState._user.feeds if is_candidate_to_delete else _feed_id not in FeedsDashboardState._user.feeds
     # except Exception:
     #     condition = False
-        # if is_candidate_to_delete
-        # else not FeedsDashboardState.is_feed_in_collection(
-        #     feed_details,
-        #     FeedsDashboardState.available_feeds
-        # )
+    # if is_candidate_to_delete
+    # else not FeedsDashboardState.is_feed_in_collection(
+    #     feed_details,
+    #     FeedsDashboardState.available_feeds
+    # )
     # )
     return pc.cond(
         condition,
@@ -190,7 +233,11 @@ def feeds_presentation() -> pc.Component:
             pc.vstack(
                 pc.foreach(
                     FeedsDashboardState.user_feeds,
-                    lambda feed_data: render_feed_box(feed_data, True),
+                    lambda feed_data: render_feed_box(
+                        feed_data,
+                        FeedsDashboardState.user_feeds_status[feed_data[3]],
+                        True,
+                    ),
                 ),
                 pc.button(
                     "Delete",
@@ -214,7 +261,11 @@ def feeds_presentation() -> pc.Component:
             pc.vstack(
                 pc.foreach(
                     FeedsDashboardState.available_feeds,
-                    lambda feed_data: render_feed_box(feed_data, False),
+                    lambda feed_data: render_feed_box(
+                        feed_data,
+                        FeedsDashboardState.available_feeds_status[feed_data[3]] == True,
+                        False,
+                    ),
                 ),
                 pc.button(
                     "Add",
@@ -226,7 +277,7 @@ def feeds_presentation() -> pc.Component:
                 border_color="black",
                 border_width="thick",
             ),
-            pc.text("No additional available feeds(:"),
+            pc.text("No additional available feeds"),
         ),
         pc.text(FeedsDashboardState.feeds_reset_add_message),
     )

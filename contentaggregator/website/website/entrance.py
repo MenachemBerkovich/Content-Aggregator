@@ -21,9 +21,10 @@ def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
 
 def prepare_user_feeds_details(
     user: userinterface.User,
-) -> List[List[str | int]] | None:
+) -> List[List[str | int]]:
     if check_feeds_existence(user):
         return [prepare_specific_feed_details(feed) for feed in user.feeds.collection]
+    return []
 
 
 def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
@@ -57,6 +58,8 @@ class EntranceState(pc.State):
     message: str = ""
     is_clicked: bool = False
     #
+    user_feeds_status: Dict[int, bool] = dict()
+    available_feeds_status: Dict[int, bool] = dict()
     has_feeds: bool = False
     user_feeds: List[List[str | int]] = []
     available_feeds: List[List[str | int]] = []
@@ -67,6 +70,10 @@ class EntranceState(pc.State):
     phone_address: str = ""
     sms_address: str = ""
     is_authenticated: bool = False
+    # 
+    send_timing: str = ""
+    send_hour: str = ""
+
 
     def reload(self) -> None:
         """Needed for '/signin' or '/login' page on_load attrs."""
@@ -78,10 +85,20 @@ class EntranceState(pc.State):
         self.is_authenticated = False
 
     def initialize_user_feeds(self) -> None:
+        print("i am initializing")
         self.user_feeds = prepare_user_feeds_details(self._user)
         self.available_feeds = prepare_user_available_feeds(self._user)
         self.has_feeds = check_feeds_existence(self._user)
         self.has_addresses = bool(self._user.addresses)
+        print(self.user_feeds, self.available_feeds)
+        for feed_details in self.user_feeds:
+            self.user_feeds_status[feed_details[3]] = True
+            self.available_feeds_status[feed_details[3]] = False
+        for feed_details in self.available_feeds:
+            self.available_feeds_status[feed_details[3]] = True
+            self.user_feeds_status[feed_details[3]] = False
+
+
 
     def initialize_user_addresses(self) -> None:
         if self.has_addresses:
@@ -105,6 +122,12 @@ class EntranceState(pc.State):
             self.phone_address = (
                 phone_address_obj.address if phone_address_obj else ""
             )
+            
+    def initialize_user_sending_time(self) -> None:
+        if self._user:
+            if self._user.sending_time:
+                self.send_timing = self._user.sending_time.sending_time.strftime("%H:%M")
+                self.send_hour = self._user.sending_time.sending_schedule.name
 
     def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.
@@ -116,6 +139,7 @@ class EntranceState(pc.State):
             self._user = userentrancecontrol.log_in(self.username, self.password)
             self.initialize_user_feeds()
             self.initialize_user_addresses()
+            self.initialize_user_sending_time()
             self.is_authenticated = True
             self.message = "Login successful!"
             return pc.redirect("/dashboard")
