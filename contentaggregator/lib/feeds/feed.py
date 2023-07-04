@@ -477,11 +477,12 @@ class FeedFactory:
     """Factory for creating a custom feed object by url parameter"""
 
     @staticmethod
-    def create(feed_id: int) -> Feed:
+    def create(feed_id: int, feed_type: str | None = None) -> Feed:
         """Creates a feed object by its type.
 
         Args:
             feed_id (int): The id of the feed.
+            feed_type (str): The feed type. optional.
 
         Returns:
             Feed: An Feed object matched to the feed type.
@@ -491,11 +492,12 @@ class FeedFactory:
         # is to make sure we don't create a sql query unnecessarily.
         if feed_id in Feed._instances:
             return Feed._instances[feed_id]
-        feed_type = databaseapi.select(
-            cols=config.FEEDS_DATA_COLUMNS.feed_type,
-            table=config.DATABASE_TABLES_NAMES.feeds_table,
-            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {feed_id}",
-        )[0][0]
+        if not feed_type:
+            feed_type = databaseapi.select(
+                cols=config.FEEDS_DATA_COLUMNS.feed_type,
+                table=config.DATABASE_TABLES_NAMES.feeds_table,
+                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {feed_id}",
+            )[0][0]
         match feed_type:
             case config.FEED_TYPES.html:
                 return HTMLFeed(feed_id=feed_id)

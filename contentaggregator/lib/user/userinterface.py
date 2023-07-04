@@ -341,7 +341,7 @@ class User:
                     Timing._value2member_map_[db_response[1]],
                 )
             else:
-                raise ValueError(
+                raise AttributeError(
                     """Could not find any timing settings.
                     You must define sending preferences"""
                 )

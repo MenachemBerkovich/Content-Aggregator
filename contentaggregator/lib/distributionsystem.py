@@ -82,18 +82,23 @@ class Messenger:
         for user in self._users_table.values():
             try:
                 job = self._create_job(user.sending_time.sending_schedule)
-            except TimingError:
+            except (TimingError, AttributeError):
                 continue
             #TODO match timezone also.
             job.at(user.sending_time.sending_time.strftime("%H:%M"))
             for address in user.addresses.collection.values():
+                print(address)
                 job.do(address.send_message, *user.feeds.collection).tag(user.id)
+                print("job_finc", job.job_func)
+                print(self._scheduler.get_jobs())
         self._scheduler.every(5).minutes.do(self._ensure_users_table_correctness)
 
     def run(self) -> None:
         """Defines the schedules, and runs them.
         """
         self._set_schedules()
+        print([i.job_func for i in self._scheduler.get_jobs()])
         while True:
+            print(self._scheduler.idle_seconds)
             self._scheduler.run_pending()
             time.sleep(1)

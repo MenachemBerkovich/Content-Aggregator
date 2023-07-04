@@ -11,7 +11,7 @@ import phonenumbers
 import yagmail
 
 from contentaggregator.lib.feeds.feed import Feed
-from contentaggregator.lib import config, webrequests, messagesgeneration
+from contentaggregator.lib import config, webrequests, messagesgeneration, common
 
 
 class Address(ABC):
@@ -48,6 +48,7 @@ class Address(ABC):
         """
         pass
 
+    # @common.catch_scheduled_job_exceptions
     @abstractmethod
     def send_message(self, *feeds: Feed) -> None:
         """Sends messages to self.address from system address.
@@ -193,6 +194,7 @@ class EmailAddress(Address):
         Args:
             feeds (str): variable number of feeds.
         """
+        print("message: ")
         message = "\n".join(
             messagesgeneration.generate_html_feed_summery(feed) for feed in feeds
         )

@@ -28,7 +28,8 @@ def prepare_user_feeds_details(
 
 
 def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
-    suggested_feeds = databaseapi.get_feeds_set()
+    suggested_feeds_data = databaseapi.get_feeds_set()
+    suggested_feeds = [feed.FeedFactory.create(feed_data[0], feed_data[1]) for feed_data in suggested_feeds_data] 
     if user:
         return (
             [
@@ -70,7 +71,7 @@ class EntranceState(pc.State):
     phone_address: str = ""
     sms_address: str = ""
     is_authenticated: bool = False
-    # 
+    #
     send_timing: str = ""
     send_hour: str = ""
 
@@ -127,7 +128,7 @@ class EntranceState(pc.State):
         if self._user:
             if self._user.sending_time:
                 self.send_timing = self._user.sending_time.sending_time.strftime("%H:%M")
-                self.send_hour = self._user.sending_time.sending_schedule.name
+                self.send_hour = self._user.sending_time.sending_schedule.name.capitalize()
 
     def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.

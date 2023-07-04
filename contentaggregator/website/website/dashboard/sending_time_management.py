@@ -16,6 +16,7 @@ class SendingTimeDashboard(entrance.EntranceState):
                     datetime.strptime(self.send_hour, "%H:%M").time(),
                     time.Timing.__dict__[self.send_timing.upper()],
                 )
+                self.sending_time_reset_message = "Updated successfully!"
             except Exception as e:
                 print(e)
                 self.sending_time_reset_message = str(e)

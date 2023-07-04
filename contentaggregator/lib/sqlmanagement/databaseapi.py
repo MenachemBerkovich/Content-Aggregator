@@ -6,7 +6,7 @@ from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
 from .databasecursor import MySQLCursorCM
 from contentaggregator.lib import config
-from contentaggregator.lib.feeds import feed
+# from contentaggregator.lib.feeds import feed
 
 
 def select(
@@ -135,16 +135,16 @@ def get_users_set() -> Set[int] | None:
     return {user[0] for user in db_response} if db_response[0][0] else None
 
 
-def get_feeds_set() -> Set[feed.Feed]:
+def get_feeds_set() -> List[Tuple[int | str]]:
     # TODO with threads
     """Collects all feeds existing in the database
     and returns them as a set of feeds objects.
 
     Returns:
-        Set[feed.Feed]: A set of feed objects.
+        List[Tuple[int | str]]: A list of tuples, where each one,
+        holds feed id and feed type.
     """
-    db_response = select(
-        cols=config.FEEDS_DATA_COLUMNS.id,
+    return select(
+        cols=[config.FEEDS_DATA_COLUMNS.id, config.FEEDS_DATA_COLUMNS.feed_type],
         table=config.DATABASE_TABLES_NAMES.feeds_table,
     )
-    return {feed.FeedFactory.create(feed_id[0]) for feed_id in db_response}
