@@ -6,7 +6,6 @@ from typing import List, Tuple, Iterable, Any, Dict, Union, Set
 
 from .databasecursor import MySQLCursorCM
 from contentaggregator.lib import config
-# from contentaggregator.lib.feeds import feed
 
 
 def select(
@@ -91,7 +90,6 @@ def update(
         f"{k} = {v}" if v is not None else f"{k} = NULL"
         for k, v in updates_dict.items()
     )
-    # updates = ", ".join(f"%({key})s" for key in updates_dict)
     query_str = f"UPDATE {table} SET {updates}"
     if condition_expr:
         query_str += f" WHERE {condition_expr}"

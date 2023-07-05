@@ -39,6 +39,7 @@ def get_response(**request_params: Any) -> requests.Response:
             request = requests.Request(**request_params)
             response = session.send(session.prepare_request(request), verify=config.SECURITY_CERTIFICATE)
             if not response.ok:
+                #TODO: log it.
                 print(f"status code is:{response.status_code}")
     except requests.exceptions.RequestException as exc:
         raise exc

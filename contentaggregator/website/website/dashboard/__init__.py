@@ -1,3 +1,5 @@
+"""Dashboard package for packaging all user settings displayed on the dashboard.
+"""
 import pynecone as pc
 
 from .. import entrance
@@ -9,6 +11,11 @@ from . import sending_time_management
 
 
 def landing() -> pc.Component:
+    """Generates user dashboard page.
+
+    Returns:
+        pc.Component: The vstack contains all nested components, for full dashboard presentation.
+    """
     return pc.cond(
         entrance.EntranceState.is_authenticated,
         pc.vstack(
@@ -28,7 +35,11 @@ def landing() -> pc.Component:
 
 
 class DashboardState(entrance.EntranceState):
+    """Dashboard state. inherit from main EntranceState.
+    """
     def reload_dashboard(self) -> None:
+        """Resets dashboard classes vars when dashboard page is reloaded.
+        """
         # reload username state
         username_management.DashboardUsernameState.new_username = ""
         username_management.DashboardUsernameState.username_reset_message = ""

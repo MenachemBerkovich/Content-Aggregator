@@ -1,3 +1,6 @@
+"""User's feeds management and presentation.
+"""
+
 from typing import Dict, List
 
 import pynecone as pc
@@ -6,10 +9,10 @@ from contentaggregator.lib.feeds import feed
 from contentaggregator.lib.user.userproperties import collections
 from . import entrance
 
-feed_to_check: int = -1
-
 
 class FeedsDashboardState(entrance.EntranceState):
+    """A user feeds dashboard manager"""
+
     _candidates_to_delete: Dict[int, feed.Feed] = dict()
     _candidates_to_add: Dict[int, feed.Feed] = dict()
     feeds_reset_add_message: str = ""
@@ -22,6 +25,11 @@ class FeedsDashboardState(entrance.EntranceState):
 
     @pc.var
     def has_feeds(self) -> bool:
+        """A ComputedVar that indicates if current self._user has any feeds subscription.
+
+        Returns:
+            bool: True if there are, False otherwise.
+        """
         try:
             bool_value = bool(self._user.feeds)
         except Exception:
@@ -30,13 +38,28 @@ class FeedsDashboardState(entrance.EntranceState):
 
     @pc.var
     def is_available_feeds_exists(self) -> bool:
-        print(self.available_feeds)
+        """A ComputedVar that indicates if there are any feeds that the current self._user,
+        does not subscribe to them.
+
+        Returns:
+            bool: True if there are, False otherwise.
+        """
         return bool(self.available_feeds)
 
     def set_current_feed_id(self, feed_id: int) -> None:
+        """Set the current_feed_id the user is currently engaged with.
+
+        Args:
+            feed_id (int): The feed id.
+        """
         self.current_feed_id = feed_id
 
     def update_candidates_to_delete(self, is_selected: bool) -> None:
+        """Update self._candidates_to_delete dictionary, with the user's selection or de-selection.
+
+        Args:
+            is_selected (bool): Has the user selected the feed or de-selected itץ
+        """
         if is_selected:
             self._candidates_to_delete[self.current_feed_id] = feed.FeedFactory.create(
                 self.current_feed_id
@@ -44,37 +67,47 @@ class FeedsDashboardState(entrance.EntranceState):
             self.is_deletion_disabled = False
         else:
             self._candidates_to_delete.pop(self.current_feed_id)
-            if not bool(self._candidates_to_delete):
-                self.is_deletion_disabled = True
+            if not bool(self._candidates_to_delete):#?
+                self.is_deletion_disabled = True # ? consider replace this to ComputedVar of bool(self._candidates_to_delete)
+
+    def update_feeds_subscriptions(self) -> None:
+        """Update self.user_feeds and self.available_feeds lists.
+        Used after feed deletion, to update lists accordance the last changes.
+        """
+        for feed_obj in self._candidates_to_delete.values():
+            self.user_feeds.remove(entrance.prepare_specific_feed_details(feed_obj))
+            self.available_feeds.append(
+                entrance.prepare_specific_feed_details(feed_obj)
+            )
+            self.available_feeds_status[feed_obj.id] = True  # ?
+            self.user_feeds_status[feed_obj.id] = False  # ?
 
     def delete_feeds(self) -> None:
+        """Delete all choosen feeds."""
         if self._user:
             try:
                 self._user.feeds -= collections.UserSetController(
                     *tuple(self._candidates_to_delete.values())
                 )
-                for feed_obj in self._candidates_to_delete.values():
-                    self.user_feeds.remove(
-                        entrance.prepare_specific_feed_details(feed_obj)
-                    )
-                    self.available_feeds.append(
-                        entrance.prepare_specific_feed_details(feed_obj)
-                    )
-                    self.available_feeds_status[feed_obj.id] = True
-                    self.user_feeds_status[feed_obj.id] = False
+                self.update_feeds_subscriptions()
                 self._candidates_to_delete.clear()
                 if not self._user.feeds:
-                    self.has_feeds = False
-                self.is_deletion_disabled = True
+                    self.has_feeds = False  # ? consider replace this to ComputedVar and change the user class design to be false if database retirns NULL
+                self.is_deletion_disabled = True  # ? consider replace this to ComputedVar of bool(self._candidates_to_delete)
                 self.feeds_reset_add_message = ""
                 self.feeds_reset_delete_message = (
                     "Feeds deleted successfully! please refresh to continue..."
                 )
-                self.initialize_user_feeds()
             except Exception as e:
                 self.feeds_reset_delete_message = str(e)
 
     def update_candidates_to_add(self, is_selected: bool) -> None:
+        """Update self._candidates_to_add dictionary,
+        with the user's selection or de-selection.
+
+        Args:
+            is_selected (bool): Has the user selected the feed or de-selected it.
+        """
         if is_selected:
             self._candidates_to_add[self.current_feed_id] = feed.FeedFactory.create(
                 self.current_feed_id
@@ -82,8 +115,23 @@ class FeedsDashboardState(entrance.EntranceState):
             self.is_addition_disabled = False
         else:
             self._candidates_to_add.pop(self.current_feed_id)
-            if not bool(self._candidates_to_add):
-                self.is_addition_disabled = True
+            if not bool(self._candidates_to_add):#?
+                self.is_addition_disabled = True#? as above
+
+    def update_feeds_availability(self) -> None:
+        """Update self.user_feeds and self.available_feeds lists.
+        Used after feed addition, to update lists accordance the last changes.
+        """
+        for feed_obj in self._candidates_to_add.values():
+            self.available_feeds.remove(
+                entrance.prepare_specific_feed_details(feed_obj)
+            )
+            self.user_feeds.append(
+                entrance.prepare_specific_feed_details(feed_obj)
+            )
+            self.user_feeds_status[feed_obj.id] = True#?
+            self.available_feeds_status[feed_obj.id] = False#?
+
 
     def add_feeds(self) -> None:
         if self._user:
@@ -96,18 +144,12 @@ class FeedsDashboardState(entrance.EntranceState):
                     self._user.feeds = collections.UserSetController(
                         *tuple(self._candidates_to_add.values())
                     )
-                for feed_obj in self._candidates_to_add.values():
-                    self.available_feeds.remove(
-                        entrance.prepare_specific_feed_details(feed_obj)
-                    )
-                    new_feed_details = entrance.prepare_specific_feed_details(feed_obj)
-                    self.user_feeds.append(new_feed_details)
-                    self.user_feeds_status[feed_obj.id] = True
-                    self.available_feeds_status[feed_obj.id] = False
-               # self.initialize_user_feeds()
+                self.update_feeds_availability()
                 self._candidates_to_add.clear()
-                self.has_feeds = True
-                self.is_addition_disabled = True
+                self.has_feeds = True  # ?  consider replace with ComputedVar as above
+                self.is_addition_disabled = (
+                    True  # ? consider replace with ComputedVar as above
+                )
                 self.feeds_reset_delete_message = ""
                 self.feeds_reset_add_message = (
                     "Feeds added successfully! please refresh to continue..."
@@ -117,7 +159,6 @@ class FeedsDashboardState(entrance.EntranceState):
 
     @pc.var
     def has_specific_feed(self) -> bool:
-        print(self.feed_to_check)
         return self.feed_to_check in self._candidates_to_delete
 
     @pc.var
@@ -125,18 +166,6 @@ class FeedsDashboardState(entrance.EntranceState):
         print(self.feed_to_check)
         return self.feed_to_check not in self._candidates_to_delete
 
-    # @classmethod
-    # @pc.var
-    # def is_subscribed_to(cls, feed_id: int) -> bool:
-    #     try:
-    #         return feed_id in cls._user.feeds.collection
-    #     except Exception:
-    #         return False
-
-    # @classmethod
-    # @pc.var
-    # def is_not_subscribed_to(cls, feed_id: int) -> bool:
-    #     return not cls.is_subscribed_to(feed_id)
     @classmethod
     def is_feed_in_collection(
         cls, feed_details: List[str | int], collection: List[List[str | int]]
@@ -197,21 +226,6 @@ def render_feed_box(
         if is_candidate_to_delete
         else FeedsDashboardState.update_candidates_to_add
     )
-    # condition = (
-    #     lambda: FeedsDashboardState.user_feeds_status[_feed_id]
-    #     if is_candidate_to_delete
-    #     else lambda: FeedsDashboardState.available_feeds_status[_feed_id]
-    # )
-    # try:
-    #     condition = _feed_id in FeedsDashboardState._user.feeds if is_candidate_to_delete else _feed_id not in FeedsDashboardState._user.feeds
-    # except Exception:
-    #     condition = False
-    # if is_candidate_to_delete
-    # else not FeedsDashboardState.is_feed_in_collection(
-    #     feed_details,
-    #     FeedsDashboardState.available_feeds
-    # )
-    # )
     return pc.cond(
         condition,
         pc.hstack(
@@ -263,7 +277,8 @@ def feeds_presentation() -> pc.Component:
                     FeedsDashboardState.available_feeds,
                     lambda feed_data: render_feed_box(
                         feed_data,
-                        FeedsDashboardState.available_feeds_status[feed_data[3]] == True,
+                        FeedsDashboardState.available_feeds_status[feed_data[3]]
+                        == True,
                         False,
                     ),
                 ),

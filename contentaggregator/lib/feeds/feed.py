@@ -123,7 +123,7 @@ class Feed(ABC):
         self._url = new_url
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
-            updates_dict={config.FEEDS_DATA_COLUMNS.link: new_url},
+            updates_dict={config.FEEDS_DATA_COLUMNS.link: repr(new_url)},
             condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
         )
 
@@ -175,7 +175,7 @@ class Feed(ABC):
         final_rating = self._set_final_rating(rating_amount)
         databaseapi.update(
             table=config.DATABASE_TABLES_NAMES.feeds_table,
-            updates_dict={config.FEEDS_DATA_COLUMNS.rating: final_rating},
+            updates_dict={config.FEEDS_DATA_COLUMNS.rating: repr(final_rating)},
             condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self.id}",
         )
         self._rating.rating = final_rating
@@ -183,7 +183,7 @@ class Feed(ABC):
     @property
     def items_size(self) -> int:
         """items_size property, for getting the size of the items provided by this feed.
-        Meaning - How many items will be sent to the user. 
+        Meaning - How many items will be sent to the user.
 
         Returns:
             int: The size of the items.
@@ -199,10 +199,10 @@ class Feed(ABC):
     @items_size.setter
     def items_size(self, size: int) -> None:
         """items_size setter property, enable easy way to change the defined size in tha database
-        
+
         Args:
             size (int): The new size for this feed.
-            
+
         Raises:
             ValueError: if the given size is invalid, e.g less than zero.
         """
@@ -424,7 +424,6 @@ class XMLFeed(Feed):
                 self._website = self._parsed_feed.channel.link
             except AttributeError:
                 self._website = False
-        print(self._website)
         return self._website
 
 
@@ -470,7 +469,6 @@ class HTMLFeed(Feed):
     @property
     def website(self) -> str | bool:
         raise NotImplementedError
-
 
 
 class FeedFactory:
@@ -599,33 +597,16 @@ class XMLFeedItem(FeedItem):
                 description_soup = BeautifulSoup(self._description, "html.parser")
                 if description_str := description_soup.find("a"):
                     self._description = description_str.text.strip()
-            # try:
-            #     description = self._item.description
-            #     description_soup = BeautifulSoup(description, "html.parser")
-            #     if description_str := description_soup.find("a"):
-            #         self._description = description_str.text.strip()
-            #     else:
-            #         self._description = description
-            # except KeyError:
-            #     self._description = False
         return self._description
 
     @property
     def url(self) -> str | bool:
         if not self._url:
             self._url = self._item.get("link", None)
-            # try:
-            #     self._url = self._item.link
-            # except KeyError:
-            #     self._url = False
         return self._url
 
     @property
     def publication_time(self) -> time.struct_time | bool:
         if self._publication_time is None:
             self._publication_time = self._item.get("updated_parsed", False)
-            # try:
-            #     self._publication_time = self._item.updated_parsed
-            # except KeyError:
-            #     self._publication_time = False
         return self._publication_time

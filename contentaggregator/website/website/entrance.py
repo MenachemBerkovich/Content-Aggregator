@@ -1,5 +1,6 @@
-from typing import List, Dict, Set
-from contextlib import suppress
+"""Entrance module for users entrance management and presentation
+"""
+from typing import List, Dict
 
 import pynecone as pc
 
@@ -11,6 +12,15 @@ from contentaggregator.lib.sqlmanagement import databaseapi
 
 
 def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
+    """Prepare specific feed details, in a json serializable form
+    - List of the details needed to be presented on the dashboard page.
+
+    Args:
+        feed_obj (feed.Feed): The Feed object to extract details from.
+
+    Returns:
+        List[str | int]: List with the following details: feed.image, feed.title, feed.description, feed.id.
+    """
     return [
         feed_obj.image or "https://pynecone.io/black.png",
         feed_obj.title,
@@ -22,20 +32,39 @@ def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
 def prepare_user_feeds_details(
     user: userinterface.User,
 ) -> List[List[str | int]]:
+    """Prepare all user feeds details at one place.
+
+    Args:
+        user (userinterface.User): The current user to prepare it's feeds details.
+
+    Returns:
+        List[List[str | int]]: A list of feeds details, if there are any. Empty list Otherwise.
+    """
     if check_feeds_existence(user):
         return [prepare_specific_feed_details(feed) for feed in user.feeds.collection]
     return []
 
 
 def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
+    """Prepare all non-user feeds details at one place.
+
+    Args:
+        user (userinterface.User): The current user to prepare the feeds details where it unregistered.
+
+    Returns:
+        List[List[str | int]]: A list of feeds details, if there are any. Empty list Otherwise.
+    """
     suggested_feeds_data = databaseapi.get_feeds_set()
-    suggested_feeds = [feed.FeedFactory.create(feed_data[0], feed_data[1]) for feed_data in suggested_feeds_data] 
+    suggested_feeds = [
+        feed.FeedFactory.create(feed_data[0], feed_data[1])
+        for feed_data in suggested_feeds_data
+    ]
     if user:
         return (
             [
                 prepare_specific_feed_details(feed)
                 for feed in suggested_feeds
-                if feed not in user.feeds.collection
+                if feed not in user.feeds
             ]
             if check_feeds_existence(user)
             else [prepare_specific_feed_details(feed) for feed in suggested_feeds]
@@ -43,6 +72,14 @@ def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | in
 
 
 def check_feeds_existence(user: userinterface.User) -> bool:
+    """Checks whether `user` is registered at some feeds.
+
+    Args:
+        user (userinterface.User): The user to check.
+
+    Returns:
+        bool: True if user is registered at some feeds, False otherwise.
+    """
     try:
         bool_value = bool(user.feeds)
     except Exception:
@@ -51,33 +88,40 @@ def check_feeds_existence(user: userinterface.User) -> bool:
 
 
 class EntranceState(pc.State):
-    """Manage user entrance process."""
+    """User entrance process manager."""
 
+    # User backend var. There will be a real user object, lives at this state,
+    # once login or sign-up is successful.
     _user: userinterface.User | None = None
     username: str = ""
     password: str = ""
+    is_authenticated: bool = False # ? it's still needed if we checking by self._user
+    # Message to present on the entrance page when the user trying to login or sign up.
     message: str = ""
     is_clicked: bool = False
     #
-    user_feeds_status: Dict[int, bool] = dict()
-    available_feeds_status: Dict[int, bool] = dict()
+    # For the FeedsDashboardState inheriting class.
+    user_feeds_status: Dict[int, bool] = dict()  # ? still needed?
+    available_feeds_status: Dict[int, bool] = dict()  # ? still needed?
     has_feeds: bool = False
+    # List of feed details where the user is registered.
     user_feeds: List[List[str | int]] = []
+    # List of feed details where the user is unregistered.
     available_feeds: List[List[str | int]] = []
     #
+    # For the AddressesDashboardState inheriting class.
     has_addresses: bool = False
     email_address: str = ""
     whatsapp_address: str = ""
     phone_address: str = ""
     sms_address: str = ""
-    is_authenticated: bool = False
     #
+    # For the SendingTimeDashboard inheriting class.
     send_timing: str = ""
     send_hour: str = ""
 
-
     def reload(self) -> None:
-        """Needed for '/signin' or '/login' page on_load attrs."""
+        """Resets the entrance page components when it's reloaded."""
         self._user = None
         self.username = ""
         self.password = ""
@@ -86,49 +130,38 @@ class EntranceState(pc.State):
         self.is_authenticated = False
 
     def initialize_user_feeds(self) -> None:
-        print("i am initializing")
+        """Initialize the user feeds list.
+        Used for dashboard view.
+        """
         self.user_feeds = prepare_user_feeds_details(self._user)
         self.available_feeds = prepare_user_available_feeds(self._user)
         self.has_feeds = check_feeds_existence(self._user)
         self.has_addresses = bool(self._user.addresses)
         print(self.user_feeds, self.available_feeds)
-        for feed_details in self.user_feeds:
-            self.user_feeds_status[feed_details[3]] = True
-            self.available_feeds_status[feed_details[3]] = False
-        for feed_details in self.available_feeds:
-            self.available_feeds_status[feed_details[3]] = True
-            self.user_feeds_status[feed_details[3]] = False
-
-
+        for (
+            feed_details
+        ) in (
+            self.user_feeds
+        ):  # ? from this line on... it's neede if the dictionories doesn't helpful
+            self.user_feeds_status[feed_details[3]] = True  # ?
+            self.available_feeds_status[feed_details[3]] = False  # ?
+        for feed_details in self.available_feeds:  # ?
+            self.available_feeds_status[feed_details[3]] = True  # ?
+            self.user_feeds_status[feed_details[3]] = False  # ?
 
     def initialize_user_addresses(self) -> None:
+        """Initialize user addresses,
+        so that they will be available for display in the input boxes by default.
+        """
         if self.has_addresses:
-            email_address_obj = self._user.addresses.collection.get(
-                config.ADDRESSES_KEYS.email, None
-            )
-            self.email_address = email_address_obj.address if email_address_obj else ""
-            whatsapp_address_obj = self._user.addresses.collection.get(
-                config.ADDRESSES_KEYS.whatsapp, None
-            )
-            self.whatsapp_address = (
-                whatsapp_address_obj.address if whatsapp_address_obj else ""
-            )
-            sms_address_obj = self._user.addresses.collection.get(
-                config.ADDRESSES_KEYS.sms, None
-            )
-            self.sms_address = sms_address_obj.address if sms_address_obj else ""
-            phone_address_obj = self._user.addresses.collection.get(
-                config.ADDRESSES_KEYS.phone, None
-            )
-            self.phone_address = (
-                phone_address_obj.address if phone_address_obj else ""
-            )
-            
+            for address_key, address in self._user.addresses.collection.items():
+                self.__dict__[f"{address_key}_address"] = address.address
+
     def initialize_user_sending_time(self) -> None:
-        if self._user:
-            if self._user.sending_time:
-                self.send_timing = self._user.sending_time.sending_time.strftime("%H:%M")
-                self.send_hour = self._user.sending_time.sending_schedule.name.capitalize()
+        """Initialize user sending time preference."""
+        if self._user and self._user.sending_time:
+            self.send_timing = self._user.sending_time.sending_time.strftime("%H:%M")
+            self.send_hour = self._user.sending_time.sending_schedule.name.capitalize()
 
     def log_in(self) -> pc.event.EventSpec | None:
         """Log in the current user.
@@ -141,7 +174,7 @@ class EntranceState(pc.State):
             self.initialize_user_feeds()
             self.initialize_user_addresses()
             self.initialize_user_sending_time()
-            self.is_authenticated = True
+            self.is_authenticated = True#?
             self.message = "Login successful!"
             return pc.redirect("/dashboard")
         except Exception as e:
@@ -153,9 +186,8 @@ class EntranceState(pc.State):
         self.message = ""
         try:
             self._user = userentrancecontrol.sign_up(self.username, self.password)
-            self.is_authenticated = True
-            self.message = """Sign Up Success! Please white until user dashboard will be available,
-                            #   and set your favorite feeds, addresses and sending time."""
+            self.is_authenticated = True#?
+            self.message = """Sign Up Success! Please white until user dashboard will be available \nand set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")
         except Exception as e:
             self.message = str(e)
@@ -174,7 +206,7 @@ def log_in_session() -> pc.Component:
     """Generates the login session page.
 
     Returns:
-        pc.Component: the login session page.
+        pc.Component: the login session page component.
     """
     return pc.vstack(
         pc.input(

@@ -1,4 +1,4 @@
-""""""
+"""Website module for users entrance management"""
 import pynecone as pc
 
 from . import entrance
@@ -6,6 +6,7 @@ from . import dashboard
 
 
 def index() -> pc.Component:
+    """Return the about page \ home page"""
     return pc.vstack(
         pc.text(
             "Welcome to Bermen!",
@@ -71,13 +72,13 @@ def index() -> pc.Component:
             ),
         ),
         pc.box(
-            pc.button(pc.link("Login", href="/login")),
-            pc.button(pc.link("Sign up", href="/signup")),
+            pc.button("Login", on_click=lambda: pc.redirect("/login")),#href="/login")),
+            pc.button("Sign up", on_click=lambda: pc.redirect("/signup")),#href="/signup")),
         ),
         background_image="/homepage_back.png",
     )
 
-
+# Create app.
 app = pc.App(state=entrance.EntranceState)
 
 app.add_page(

@@ -326,7 +326,6 @@ def check_credentials_compatibility(
         table=config.DATABASE_TABLES_NAMES.users_table,
         condition_expr=f"{config.USERS_DATA_COLUMNS.username} = '{username}'",
     )
-    print(db_response)
     is_match_flag = pwdhandler.is_same_password(password, bytes(db_response[0][0]))
     return (
         exceptions.PasswordNotUpdated(

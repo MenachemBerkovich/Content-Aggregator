@@ -31,20 +31,26 @@ class SendingTimeDashboard(entrance.EntranceState):
 def sending_time_presentation() -> pc.Component:
     return pc.vstack(
         pc.text("Schedule a frequency and time of sending:", as_="b"),
-        pc.hstack(
-            pc.select(
-                [key.name.capitalize() for key in time.Timing],
-                placeholder="Select timing",
-                default_value=SendingTimeDashboard.send_timing,
-                on_change=SendingTimeDashboard.set_send_timing,
+        pc.vstack(
+            pc.hstack(
+                pc.select(
+                    [key.name.capitalize() for key in time.Timing],
+                    placeholder="Select timing",
+                    default_value=SendingTimeDashboard.send_timing,
+                    on_change=SendingTimeDashboard.set_send_timing,
+                ),
+                pc.input(
+                    type_="time",
+                    placeholder="Select hour",
+                    default_value=SendingTimeDashboard.send_hour,
+                    on_change=SendingTimeDashboard.set_send_hour,
+                ),
             ),
-            pc.input(
-                type_="time",
-                placeholder="Select hour",
-                default_value=SendingTimeDashboard.send_hour,
-                on_change=SendingTimeDashboard.set_send_hour,
-            ),
+            pc.button("Save", on_click=SendingTimeDashboard.save_changes),
+            pc.text(SendingTimeDashboard.sending_time_reset_message),
+            border_radius="15px",
+            padding=5,
+            border_color="black",
+            border_width="thick",
         ),
-        pc.button("Save", on_click=SendingTimeDashboard.save_changes),
-        pc.text(SendingTimeDashboard.sending_time_reset_message),
     )

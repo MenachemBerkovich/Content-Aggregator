@@ -48,7 +48,6 @@ class Address(ABC):
         """
         pass
 
-    # @common.catch_scheduled_job_exceptions
     @abstractmethod
     def send_message(self, *feeds: Feed) -> None:
         """Sends messages to self.address from system address.
@@ -78,7 +77,6 @@ class NumberAddress(Address):
         is_verified_flag: bool | None = None,
     ):
         number_obj: phonenumbers.PhoneNumber = phonenumbers.parse(phone_number)
-        print(number_obj)
         super().__init__(
             f"+{str(number_obj.country_code)}{str(number_obj.national_number)}",
             is_valid_flag,
@@ -99,7 +97,6 @@ class NumberAddress(Address):
             headers=config.create_rapidAPI_request_headers(config.VERIPHONE_RAPID_NAME),
             params={"phone": self.address},
         )
-        print(response.text)
         return bool(json.loads(response.text).get("phone_valid", None))
 
     # Undecorated as abstractmethod, because has no effect
@@ -126,7 +123,6 @@ class WhatsAppAddress(NumberAddress):
             ),
             params={"phone": self.address[1:]},
         )
-        print(response.text)
         return json.loads(response.text).get("valid", None)
 
     def send_message(self, *feeds: Feed) -> None:
@@ -194,7 +190,6 @@ class EmailAddress(Address):
         Args:
             feeds (str): variable number of feeds.
         """
-        print("message: ")
         message = "\n".join(
             messagesgeneration.generate_html_feed_summery(feed) for feed in feeds
         )
@@ -227,5 +222,5 @@ class AddressFactory:
                 return PhoneAddress(address, True, True)
             case config.ADDRESSES_KEYS.email:
                 return EmailAddress(address, True, True)
-            # case config.ADDRESSES_KEYS.sms:
-            #     return SMSAddress(address, True, True)
+            case config.ADDRESSES_KEYS.sms:
+                return SMSAddress(address, True, True)

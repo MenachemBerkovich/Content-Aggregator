@@ -163,7 +163,6 @@ class User:
                 desired_rows_num=1,
             )[0][0]:
                 response_info = json.loads(db_response)
-                print(response_info)
                 data = {
                     key: address.AddressFactory.create(key, value)
                     for key, value in response_info.items()

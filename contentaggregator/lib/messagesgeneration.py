@@ -53,7 +53,7 @@ def generate_html_feed_summery(feed: Feed) -> str:
         #Below, place the name of the feed.
         (tinyhtml.h("h1")(feed.title) if feed.title else None),
         *(
-            #Now, below, place the feed items, item by item.
+            #Now, place the feed items, item by item.
             tinyhtml.h("h2")(
                 (
                     tinyhtml.h("div", style="font-size: 15px;")(

@@ -3,8 +3,6 @@ Should work ay anytime - as a server.
 Independent of any other system events, like client server interaction.
 """
 from __future__ import annotations
-from typing import NamedTuple, Tuple, Callable, Iterable
-from enum import Enum
 import time
 import contextlib
 
@@ -48,7 +46,6 @@ class Messenger:
         If it did happen, the method will update self._users_table,
         and reset schedules as necessary.
         """
-        print("I calld to update self._users_table")
         updated_users_set = databaseapi.get_users_set()
         delete_users_set = set(self._users_table.keys()).difference(updated_users_set)
         # delete deleted users and cancel it's jobs.
@@ -64,10 +61,6 @@ class Messenger:
         new_users_set = updated_users_set.difference(self._users_table.keys())
         for user_id in new_users_set:
             self._users_table[user_id] = User(user_id)
-        print(
-            "This is the updated",
-            [user.sending_time.sending_time for user in self._users_table.values()],
-        )
         self._set_schedules(set_updating_schedule=False)
 
     def _create_job(self, job_timing: Timing, address_key: str) -> schedule.Job:
@@ -113,12 +106,6 @@ class Messenger:
             Defaults to True.
         """
         for user in self._users_table.values():
-            # try:
-            #     job = self._create_job(user.sending_time.sending_schedule)
-            # except (TimingError, AttributeError):
-            #     continue
-            # # TODO match timezone also.
-            # job.at(user.sending_time.sending_time.strftime("%H:%M"))
             try:
                 for address_key, address in user.addresses.collection.items():
                     job = self._create_job(
@@ -141,18 +128,9 @@ class Messenger:
     def run(self) -> None:
         """Defines the schedules, and runs them."""
         self._set_schedules()
-        # print([i.job_func for i in self._scheduler.get_jobs()])
         while True:
-            # print(self._scheduler.idle_seconds)
             self._email_scheduler.run_pending()
             self._whatsapp_scheduler.run_pending()
             self._sms_scheduler.run_pending()
             self._phone_scheduler.run_pending()
-            print(
-                "Jobs:",
-                self._email_scheduler.get_jobs(),
-                "\n",
-                "+",
-                self._phone_scheduler.run_pending(),
-            )
             time.sleep(1)
