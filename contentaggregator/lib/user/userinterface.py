@@ -4,7 +4,6 @@
 from __future__ import annotations
 import datetime
 import json
-import contextlib
 
 from contentaggregator.lib.sqlmanagement import databaseapi
 from contentaggregator.lib.feeds.feed import FeedFactory
@@ -31,11 +30,11 @@ class User:
         if not self.is_valid_id(user_id):
             raise UserNotFound("The user id is not valid.")
         self._id: int = user_id
-        self._feeds: UserSetController | None = None
-        self._addresses: UserDictController | None = None
+        self._feeds: UserSetController | bool | None = None
+        self._addresses: UserDictController | bool | None = None
         self._username: str | None = None
         self._password: bytes | None = None
-        self._sending_time: Time | None = None
+        self._sending_time: Time | bool | None = None
 
     def __repr__(self):
         return f"User(id={self.id})"
@@ -83,16 +82,16 @@ class User:
         return self._id
 
     @property
-    def feeds(self) -> UserSetController | None:
+    def feeds(self) -> UserSetController | bool:
         """Feeds property getter.
         Gets all feeds where this user is subscribed to.
 
         Returns:
             UserSetController | None: An object contains an set of user feeds,
             if it has any feed,
-            None otherwise.
+            False otherwise.
         """
-        if not self._feeds:
+        if self._feeds is None:
             if db_response := databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.subscriptions,
                 table=config.DATABASE_TABLES_NAMES.users_table,
@@ -103,6 +102,8 @@ class User:
                 # that will be collect information from feeds table also. (or if it will be better to know this by url it self)
                 data = (FeedFactory.create(feed) for feed in json.loads(db_response))
                 self._feeds = UserSetController(*data)
+            else:
+                self._feeds = False
         return self._feeds
 
     @feeds.setter
@@ -146,16 +147,16 @@ class User:
 
     # TODO Implement methods to enable using 'in' keyword, and to be iterable - UserCollectionResetController and AddressesResetManager classes
     @property
-    def addresses(self) -> UserDictController | None:
+    def addresses(self) -> UserDictController | bool:
         """Address property getter.
         Gets the existing addresses for this user.
 
         Returns:
-            UserDictController | None: An object contains an set of user addresses,
+            UserDictController | bool: An object contains an set of user addresses,
             if he has any address.
-            None otherwise.
+            False otherwise.
         """
-        if not self._addresses:
+        if self._addresses is None:
             if db_response := databaseapi.select(
                 cols=config.USERS_DATA_COLUMNS.addresses,
                 table=config.DATABASE_TABLES_NAMES.users_table,
@@ -168,6 +169,8 @@ class User:
                     for key, value in response_info.items()
                 }
                 self._addresses = UserDictController(**data)
+            else:
+                self._addresses = False
         return self._addresses
 
     @addresses.setter

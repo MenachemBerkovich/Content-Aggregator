@@ -57,11 +57,11 @@ class Feed(ABC):
         self._categories: Set[FeedCategories] | None = None
         self._content_info: Tuple[datetime.datetime, List[FeedItem]] | None = None
         self._parsed_feed: feedparser.FeedParserDict | str | None = None
-        self._language: str | bool = None
+        self._language: str | bool | None = None
         self._title: str | None = None
-        self._image: str | bool = None
-        self._website: str | bool = None
-        self._description: str | bool = None
+        self._image: str | bool | None = None
+        self._website: str | bool | None = None
+        self._description: str | bool | None = None
         self._items_size: int | None = None
 
     def __repr__(self):
@@ -98,7 +98,7 @@ class Feed(ABC):
         Returns:
             str: Feed url
         """
-        if not self._url:
+        if self._url is None:
             self._url = databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.link,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
@@ -134,7 +134,7 @@ class Feed(ABC):
         Returns:
             float: The rating of this feed.
         """
-        if not self._rating:
+        if self._rating is None:
             rating = databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.rating,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
@@ -188,7 +188,7 @@ class Feed(ABC):
         Returns:
             int: The size of the items.
         """
-        if not self._items_size:
+        if self._items_size is None:
             self._items_size = databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.items_size,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
@@ -237,7 +237,7 @@ class Feed(ABC):
         Returns:
             Set[FeedCategories] | None: A Set of categories if was defined, None otherwise.
         """
-        if not self._categories:
+        if self._categories is None:
             if db_response := databaseapi.select(
                 cols=config.FEEDS_DATA_COLUMNS.categories,
                 table=config.DATABASE_TABLES_NAMES.feeds_table,
@@ -390,7 +390,7 @@ class XMLFeed(Feed):
 
     @property
     def title(self) -> str:
-        if not self._title:
+        if self._title is None:
             try:
                 self._title = self._parsed_feed.channel.title
             except AttributeError:
@@ -513,15 +513,15 @@ class FeedItem(ABC):
     ) -> None:
         self._item: feedparser.util.FeedParserDict = item_string
         self._version: str = feed_version
-        self._image: str | bool = None
-        self._title: str | bool = None
-        self._description: str | bool = None
-        self._url: str | bool = None
-        self._publication_time: time.struct_time | bool = None
+        self._image: str | bool | None = None
+        self._title: str | bool | None = None
+        self._description: str | bool | None = None
+        self._url: str | bool | None = None
+        self._publication_time: time.struct_time | bool | None = None
 
     @property
     @abstractmethod
-    def image(self) -> str | bool:
+    def image(self) -> str | bool | None:
         """Returns the url of the image describes this item, if there is one.
 
         Returns:
@@ -531,7 +531,7 @@ class FeedItem(ABC):
 
     @property
     @abstractmethod
-    def title(self) -> str:
+    def title(self) -> str | bool:
         """Returns the title \ header of the item.
 
         Returns:
@@ -547,7 +547,7 @@ class FeedItem(ABC):
 
     @property
     @abstractmethod
-    def url(self) -> str:
+    def url(self) -> str | bool:
         """Returns the specific url of this item.
 
         Returns:
@@ -601,8 +601,8 @@ class XMLFeedItem(FeedItem):
 
     @property
     def url(self) -> str | bool:
-        if not self._url:
-            self._url = self._item.get("link", None)
+        if self._url is None:
+            self._url = self._item.get("link", False)
         return self._url
 
     @property
