@@ -103,6 +103,7 @@ class EntranceState(pc.State):
             feed.FeedFactory.create(feed_data[0], feed_data[1])
             for feed_data in suggested_feeds_data
         ]
+        print("I will prepare")
         self.websites_links = {feed.id: feed.website for feed in suggested_feeds}
         if self._user:
             if self._user.feeds:
@@ -120,14 +121,14 @@ class EntranceState(pc.State):
                     prepare_specific_feed_details(feed) for feed in suggested_feeds
                 ]
 
-    def initialize_user_feeds(self) -> None:
-        """Initialize the user feeds list.
+    def initialize_feeds_status(self) -> None:
+        """Initialize user feeds Status.
         Used for dashboard view.
         """
+        # First of all, prepare the necessary feeds lists.
         self.prepare_feeds_data()
         self.has_feeds = check_feeds_existence(self._user)
-        self.has_addresses = bool(self._user.addresses)
-        # ? from this line on... it's neede if the dictionories doesn't helpful
+        # ? from this line on... it's needed if the dictionories doesn't helpful
         for feed_details in self.user_feeds:
             self.user_feeds_status[feed_details[3]] = True  # ?
             self.available_feeds_status[feed_details[3]] = False  # ?
@@ -157,7 +158,8 @@ class EntranceState(pc.State):
         self.message = ""
         try:
             self._user = userentrancecontrol.log_in(self.username, self.password)
-            self.initialize_user_feeds()
+            self.initialize_feeds_status()
+            self.has_addresses = bool(self._user.addresses)
             self.initialize_user_addresses()
             self.initialize_user_sending_time()
             self.message = "Login successful!"

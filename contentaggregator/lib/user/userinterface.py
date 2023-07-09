@@ -27,8 +27,6 @@ class User:
     """Represents a user in the system"""
 
     def __init__(self, user_id: int) -> None:
-        if not self.is_valid_id(user_id):
-            raise UserNotFound("The user id is not valid.")
         self._id: int = user_id
         self._feeds: UserSetController | bool | None = None
         self._addresses: UserDictController | bool | None = None
@@ -58,19 +56,6 @@ class User:
             and self.addresses == other.addresses
             and self.sending_time == other.sending_time
         )
-
-    @staticmethod
-    def is_valid_id(user_id: int) -> bool:
-        """Checks if the given user id is valid i.e if it's exist in database.
-
-        Args:
-            user_id (int): The user id to check.
-
-        Returns:
-            bool: True if the user id exists in users table, False otherwise.
-        """
-        users_list = databaseapi.get_users_set()
-        return user_id in users_list if users_list else False
 
     @property
     def id(self) -> int:
