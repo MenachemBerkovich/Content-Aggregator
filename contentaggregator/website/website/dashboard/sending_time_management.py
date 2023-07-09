@@ -1,3 +1,5 @@
+"""User's sending_time management and presentation.
+"""
 from datetime import datetime
 
 import pynecone as pc
@@ -7,9 +9,12 @@ from contentaggregator.lib.user.userproperties import time
 
 
 class SendingTimeDashboard(entrance.EntranceState):
+    """Sending time state manager"""
+
     sending_time_reset_message: str = ""
 
     def save_changes(self) -> None:
+        """Reset self._user.sending_time property."""
         if self._user:
             try:
                 self._user.sending_time = time.Time(
@@ -18,17 +23,15 @@ class SendingTimeDashboard(entrance.EntranceState):
                 )
                 self.sending_time_reset_message = "Updated successfully!"
             except Exception as e:
-                print(e)
                 self.sending_time_reset_message = str(e)
-        print(
-            type(self.send_timing),
-            self.send_timing,
-            type(self.send_hour),
-            self.send_hour,
-        )
 
 
 def sending_time_presentation() -> pc.Component:
+    """Generate a sending time reset box part an the dashboard page
+
+    Returns:
+        pc.Component: The component that will be displayed on the dashboard for sending time reset.
+    """
     return pc.vstack(
         pc.text("Schedule a frequency and time of sending:", as_="b"),
         pc.vstack(

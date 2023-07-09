@@ -160,7 +160,6 @@ class AddressesDashboardState(entrance.EntranceState):
             address_key (str): The address key of the requested address message.
             new_message (str, optional): The new message to reset to. Defaults to "".
         """
-        # self.__dict__[f'{address_key}_message'] = new_message - will be work? - Not. see above.
         match address_key:
             case config.ADDRESSES_KEYS.email:
                 self.email_address_reset_message = new_message
@@ -203,7 +202,7 @@ class AddressesDashboardState(entrance.EntranceState):
                     ] = new_address_obj
                     # Update database.
                     # TODO Consider simplify it by adding email, whatsapp, sms and phone properties setters and getters
-                    # Inside User class (if it's job?!), or inside UserDictController class (but how to access _update_addresses for database without circular importing?!)
+                    # Inside User class (if it's job..), or inside UserDictController class (but how to access _update_addresses for database without circular importing...)
                     self._user._update_addresses()
                     self.reset_message(address_key, "Address successfully updated!")
                 # If user has no any address, set it's addresses attribute.

@@ -50,10 +50,9 @@ class EntranceState(pc.State):
 
     # User backend var. There will be a real user object, lives at this state,
     # once login or sign-up is successful.
-    _user: userinterface.User | None = None
+    _user: userinterface.User | bool = False
     username: str = ""
     password: str = ""
-    is_authenticated: bool = False  # ? it's still needed if we checking by self._user
     # Message to present on the entrance page when the user trying to login or sign up.
     message: str = ""
     is_clicked: bool = False
@@ -79,16 +78,26 @@ class EntranceState(pc.State):
     send_timing: str = ""
     send_hour: str = ""
 
+    @pc.var
+    def is_authenticated(self) -> bool:
+        """A ComputedVar that indicates if the user has successfully logged in.
+
+        Returns:
+            bool: True if has logged, False otherwise."""
+        return bool(self._user)
+
     def reload(self) -> None:
         """Resets the entrance page components when it's reloaded."""
-        self._user = None
+        self._user = False
         self.username = ""
         self.password = ""
         self.is_clicked = False
         self.message = ""
-        self.is_authenticated = False
 
-    def prepare_feed_lists(self) -> None:
+    def prepare_feeds_data(self) -> None:
+        """Prepare the necessary data about feeds.
+        Feeds links dicts and feeds details lists.  
+        """
         suggested_feeds_data = databaseapi.get_feeds_set()
         suggested_feeds = [
             feed.FeedFactory.create(feed_data[0], feed_data[1])
@@ -115,15 +124,11 @@ class EntranceState(pc.State):
         """Initialize the user feeds list.
         Used for dashboard view.
         """
-        self.prepare_feed_lists()
+        self.prepare_feeds_data()
         self.has_feeds = check_feeds_existence(self._user)
         self.has_addresses = bool(self._user.addresses)
-        print(self.user_feeds, self.available_feeds)
-        for (
-            feed_details
-        ) in (
-            self.user_feeds
-        ):  # ? from this line on... it's neede if the dictionories doesn't helpful
+        # ? from this line on... it's neede if the dictionories doesn't helpful
+        for feed_details in self.user_feeds:
             self.user_feeds_status[feed_details[3]] = True  # ?
             self.available_feeds_status[feed_details[3]] = False  # ?
         for feed_details in self.available_feeds:  # ?
@@ -155,7 +160,6 @@ class EntranceState(pc.State):
             self.initialize_user_feeds()
             self.initialize_user_addresses()
             self.initialize_user_sending_time()
-            self.is_authenticated = True  # ?
             self.message = "Login successful!"
             return pc.redirect("/dashboard")
         except Exception as e:
@@ -167,7 +171,6 @@ class EntranceState(pc.State):
         self.message = ""
         try:
             self._user = userentrancecontrol.sign_up(self.username, self.password)
-            self.is_authenticated = True  # ?
             self.message = """Sign Up Success! Please white until user dashboard will be available \nand set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")
         except Exception as e:
@@ -205,7 +208,6 @@ def log_in_session() -> pc.Component:
             type_="password",
             on_blur=EntranceState.set_password,
             color="#676767",
-            type="username",
             size="md",
             border="2px solid #f4f4f4",
             box_shadow="rgba(0, 0, 0, 0.08) 0px 4px 12px",

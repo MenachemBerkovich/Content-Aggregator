@@ -29,7 +29,7 @@ def landing() -> pc.Component:
             pc.text("403:( You need"),
             pc.link("login", href="/login", as_="b"),
             pc.text(" or "),
-            pc.link(f"sign up", href="/signup", as_="b"),
+            pc.link("sign up", href="/signup", as_="b"),
         ),
     )
 

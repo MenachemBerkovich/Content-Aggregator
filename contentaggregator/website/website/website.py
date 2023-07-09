@@ -6,7 +6,7 @@ from . import dashboard
 
 
 def index() -> pc.Component:
-    """Return the about page \ home page"""
+    """Return home page component"""
     return pc.vstack(
         pc.text(
             "Welcome!",
