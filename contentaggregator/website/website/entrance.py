@@ -29,48 +29,6 @@ def prepare_specific_feed_details(feed_obj: feed.Feed) -> List[str | int]:
     ]
 
 
-def prepare_user_feeds_details(
-    user: userinterface.User,
-) -> List[List[str | int]]:
-    """Prepare all user feeds details at one place.
-
-    Args:
-        user (userinterface.User): The current user to prepare it's feeds details.
-
-    Returns:
-        List[List[str | int]]: A list of feeds details, if there are any. Empty list Otherwise.
-    """
-    if check_feeds_existence(user):
-        return [prepare_specific_feed_details(feed) for feed in user.feeds.collection]
-    return []
-
-
-def prepare_user_available_feeds(user: userinterface.User) -> List[List[str | int]]:
-    """Prepare all non-user feeds details at one place.
-
-    Args:
-        user (userinterface.User): The current user to prepare the feeds details where it unregistered.
-
-    Returns:
-        List[List[str | int]]: A list of feeds details, if there are any. Empty list Otherwise.
-    """
-    suggested_feeds_data = databaseapi.get_feeds_set()
-    suggested_feeds = [
-        feed.FeedFactory.create(feed_data[0], feed_data[1])
-        for feed_data in suggested_feeds_data
-    ]
-    if user:
-        return (
-            [
-                prepare_specific_feed_details(feed)
-                for feed in suggested_feeds
-                if feed not in user.feeds
-            ]
-            if check_feeds_existence(user)
-            else [prepare_specific_feed_details(feed) for feed in suggested_feeds]
-        )
-
-
 def check_feeds_existence(user: userinterface.User) -> bool:
     """Checks whether `user` is registered at some feeds.
 
@@ -95,7 +53,7 @@ class EntranceState(pc.State):
     _user: userinterface.User | None = None
     username: str = ""
     password: str = ""
-    is_authenticated: bool = False # ? it's still needed if we checking by self._user
+    is_authenticated: bool = False  # ? it's still needed if we checking by self._user
     # Message to present on the entrance page when the user trying to login or sign up.
     message: str = ""
     is_clicked: bool = False
@@ -103,6 +61,7 @@ class EntranceState(pc.State):
     # For the FeedsDashboardState inheriting class.
     user_feeds_status: Dict[int, bool] = dict()  # ? still needed?
     available_feeds_status: Dict[int, bool] = dict()  # ? still needed?
+    websites_links: Dict[int, str] = dict()
     has_feeds: bool = False
     # List of feed details where the user is registered.
     user_feeds: List[List[str | int]] = []
@@ -129,12 +88,34 @@ class EntranceState(pc.State):
         self.message = ""
         self.is_authenticated = False
 
+    def prepare_feed_lists(self) -> None:
+        suggested_feeds_data = databaseapi.get_feeds_set()
+        suggested_feeds = [
+            feed.FeedFactory.create(feed_data[0], feed_data[1])
+            for feed_data in suggested_feeds_data
+        ]
+        self.websites_links = {feed.id: feed.website for feed in suggested_feeds}
+        if self._user:
+            if self._user.feeds:
+                self.available_feeds = [
+                    prepare_specific_feed_details(feed)
+                    for feed in suggested_feeds
+                    if feed not in self._user.feeds.collection
+                ]
+                self.user_feeds = [
+                    prepare_specific_feed_details(feed)
+                    for feed in self._user.feeds.collection
+                ]
+            else:
+                self.available_feeds = [
+                    prepare_specific_feed_details(feed) for feed in suggested_feeds
+                ]
+
     def initialize_user_feeds(self) -> None:
         """Initialize the user feeds list.
         Used for dashboard view.
         """
-        self.user_feeds = prepare_user_feeds_details(self._user)
-        self.available_feeds = prepare_user_available_feeds(self._user)
+        self.prepare_feed_lists()
         self.has_feeds = check_feeds_existence(self._user)
         self.has_addresses = bool(self._user.addresses)
         print(self.user_feeds, self.available_feeds)
@@ -174,7 +155,7 @@ class EntranceState(pc.State):
             self.initialize_user_feeds()
             self.initialize_user_addresses()
             self.initialize_user_sending_time()
-            self.is_authenticated = True#?
+            self.is_authenticated = True  # ?
             self.message = "Login successful!"
             return pc.redirect("/dashboard")
         except Exception as e:
@@ -186,7 +167,7 @@ class EntranceState(pc.State):
         self.message = ""
         try:
             self._user = userentrancecontrol.sign_up(self.username, self.password)
-            self.is_authenticated = True#?
+            self.is_authenticated = True  # ?
             self.message = """Sign Up Success! Please white until user dashboard will be available \nand set your favorite feeds, addresses and sending time."""
             return pc.redirect("/dashboard")
         except Exception as e:

@@ -9,7 +9,7 @@ def index() -> pc.Component:
     """Return the about page \ home page"""
     return pc.vstack(
         pc.text(
-            "Welcome to Bermen!",
+            "Welcome!",
             font_size="4em",
             font_weight=700,
             font_family="Inter",
@@ -31,7 +31,7 @@ def index() -> pc.Component:
             pc.container(
                 pc.text(
                     """
-                As a barmen, I constantly collect content for you from various sources,
+                Hey, I constantly collect content for you from various sources,
                 prepare it in the most beautiful way, and serve you cold and refreshing...
                 """,
                     font_size="2em",
@@ -83,7 +83,7 @@ app = pc.App(state=entrance.EntranceState)
 
 app.add_page(
     index,
-    title="Bermen",
+    title="Content Aggregation",
     description="A beautiful app built with Pynecone",
     image="/homepage_background.jpg",
 )
@@ -92,14 +92,14 @@ app.add_page(
     entrance.log_in_session,
     route="/login",
     on_load=entrance.EntranceState.reload,
-    title="Bermen Login Session",
+    title="Content Aggregation Login Session",
 )
 
 app.add_page(
     entrance.sign_up_session,
     route="/signup",
     on_load=entrance.EntranceState.reload,
-    title="Bermen Sign Up Session",
+    title="Content Aggregation Sign Up Session",
 )
 
 app.add_page(

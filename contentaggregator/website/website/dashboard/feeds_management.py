@@ -134,6 +134,7 @@ class FeedsDashboardState(entrance.EntranceState):
 
 
     def add_feeds(self) -> None:
+        """Add all chosen feeds."""
         if self._user:
             try:
                 if self._user.feeds:
@@ -157,70 +158,26 @@ class FeedsDashboardState(entrance.EntranceState):
             except Exception as e:
                 self.feeds_reset_add_message = str(e)
 
-    @pc.var
-    def has_specific_feed(self) -> bool:
-        return self.feed_to_check in self._candidates_to_delete
-
-    @pc.var
-    def has_no_specific_feed(self) -> bool:
-        print(self.feed_to_check)
-        return self.feed_to_check not in self._candidates_to_delete
-
-    @classmethod
-    def is_feed_in_collection(
-        cls, feed_details: List[str | int], collection: List[List[str | int]]
-    ) -> bool:
-        """_summary_
-
-        Args:
-            feed_details (List[str  |  int]): _description_
-            collection (List[List[str  |  int]]): _description_
-
-        Returns:
-            bool: _description_
-        """
-        try:
-            return feed_details[3] in cls._user.feeds.collection
-        except Exception:
-            return False
-
-    @classmethod
-    def is_feed_should_appear(
-        cls, feed_details: List[str | int], is_candidate_to_delete: bool
-    ) -> bool:
-        return (
-            feed_details not in cls.available_feeds
-            if is_candidate_to_delete
-            else feed_details not in cls.user_feeds
-        )
-
-
-def has_this_feed(feed_id: int) -> pc.vars.ComputedVar:
-    FeedsDashboardState.feed_to_check = feed_id
-    return FeedsDashboardState.has_specific_feed
-
-
-def has_no_this_feed(feed_id: int) -> pc.vars.ComputedVar:
-    FeedsDashboardState.feed_to_check = feed_id
-    return FeedsDashboardState.has_no_specific_feed
-
-
-def check_feed_existance(feed_id: int, user) -> bool:
-    try:
-        return feed_id in user.feeds
-    except Exception:
-        return False
-
 
 def render_feed_box(
     feed_details: List[str],
     condition: pc.vars.Var,
     is_candidate_to_delete: bool,
 ) -> pc.Component:
+    """Render feed component with feed details.
+
+    Args:
+        feed_details (List[str]): A list that contains any data needed for rendering.
+        condition (pc.vars.Var): The condition for feed component.
+        is_candidate_to_delete (bool): If is a user's feed or not.
+
+    Returns:
+        pc.Component: The conditional component for specific feed.
+    """
     _feed_image = str(feed_details[0])
-    _feed_website = str(feed_details[1])
     _feed_title = feed_details[2]
     _feed_id = feed_details[3]
+    _feed_website = FeedsDashboardState.websites_links[_feed_id]
     button_event_handler = (
         FeedsDashboardState.update_candidates_to_delete
         if is_candidate_to_delete
@@ -232,11 +189,13 @@ def render_feed_box(
             pc.link(
                 _feed_title,
                 href=_feed_website,
+                is_external=True,
             ),
-            pc.checkbox("Select", color_scheme="green", on_change=button_event_handler),
+            pc.checkbox(color_scheme="green", on_change=button_event_handler),
             on_mouse_over=lambda _: FeedsDashboardState.set_current_feed_id(_feed_id),
         ),
     )
+
 
 
 def feeds_presentation() -> pc.Component:

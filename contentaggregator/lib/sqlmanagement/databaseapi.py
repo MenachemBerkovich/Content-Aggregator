@@ -130,17 +130,16 @@ def get_users_set() -> Set[int] | None:
         cols=config.USERS_DATA_COLUMNS.id,
         table=config.DATABASE_TABLES_NAMES.users_table,
     )
-    return {user[0] for user in db_response} if db_response[0][0] else None
+    return {user_data[0] for user_data in db_response} if db_response[0][0] else None
 
 
 def get_feeds_set() -> List[Tuple[int | str]]:
-    # TODO with threads
     """Collects all feeds existing in the database
     and returns them as a set of feeds objects.
 
     Returns:
-        List[Tuple[int | str]]: A list of tuples, where each one,
-        holds feed id and feed type.
+        List[Tuple[int | str]]: A list of tuples that holds
+        feed id and feed type.
     """
     return select(
         cols=[config.FEEDS_DATA_COLUMNS.id, config.FEEDS_DATA_COLUMNS.feed_type],
