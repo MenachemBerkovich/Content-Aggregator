@@ -61,7 +61,7 @@ class Messenger:
         new_users_set = updated_users_set.difference(self._users_table.keys())
         for user_id in new_users_set:
             self._users_table[user_id] = User(user_id)
-        self._set_schedules(set_updating_schedule=False)
+        self._set_sending_schedules()
 
     def _create_job(self, job_timing: Timing, address_key: str) -> schedule.Job:
         """Create a new schedule.Job object for specific self._..._scheduler
@@ -96,14 +96,21 @@ class Messenger:
             case Timing.SUNDAY:
                 return self.__dict__[f"_{address_key}_scheduler"].every().sunday
 
-    def _set_schedules(self, set_updating_schedule: bool = True) -> None:
-        """Adds all sending tasks to the self._scheduler, each user as it's preferences.
+    def _set_updating_schedules(self) -> None:
+        """Set all updating schedules.
+        Used by self.run() to update the self.scheduler(s) according to changes made to the database
+        during program life-time.
+        """
+        for scheduler in [
+                self._email_scheduler,
+                self._whatsapp_scheduler,
+                self._sms_scheduler,
+                self._phone_scheduler,
+            ]:
+                scheduler.every(5).minutes.do(self._ensure_users_table_correctness)
 
-        Args:
-            set_updating_schedule (bool, optional): If updating schedules is needed,
-            for example, by the self._ensure_users_table_correctness is not,
-            because it's already scheduled once system started.
-            Defaults to True.
+    def _set_sending_schedules(self) -> None:
+        """Adds all sending tasks to the self._scheduler, each user as it's preferences.
         """
         for user in self._users_table.values():
             try:
@@ -114,20 +121,13 @@ class Messenger:
                     # TODO match timezone also.
                     job.at(user.sending_time.sending_time.strftime("%H:%M"))
                     job.do(address.send_message, *user.feeds.collection).tag(user.id)
-            except (TimingError, AttributeError):
+            except TimingError:
                 continue
-        if set_updating_schedule:
-            for scheduler in [
-                self._email_scheduler,
-                self._whatsapp_scheduler,
-                self._sms_scheduler,
-                self._phone_scheduler,
-            ]:
-                scheduler.every(5).minutes.do(self._ensure_users_table_correctness)
 
     def run(self) -> None:
         """Defines the schedules, and runs them."""
-        self._set_schedules()
+        self._set_sending_schedules()
+        self._set_updating_schedules()
         while True:
             self._email_scheduler.run_pending()
             self._whatsapp_scheduler.run_pending()

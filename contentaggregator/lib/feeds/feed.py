@@ -346,7 +346,11 @@ class Feed(ABC):
         Returns:
             str: Feed content.
         """
-        return webrequests.get_response(method="get", url=self.url).text
+        try:
+            return webrequests.get_response(method="get", url=self.url).text
+        except Exception as exc:
+            print(exc)
+            # TODO log it
 
     @abstractmethod
     def ensure_updated_stream(self) -> None:

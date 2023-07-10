@@ -5,13 +5,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import json
 import re
-from typing import List
+from concurrent import futures
 
 import phonenumbers
 import yagmail
 
 from contentaggregator.lib.feeds.feed import Feed
-from contentaggregator.lib import config, webrequests, messagesgeneration, common
+from contentaggregator.lib import config, webrequests, messagesgeneration
 
 
 class Address(ABC):
@@ -190,9 +190,19 @@ class EmailAddress(Address):
         Args:
             feeds (str): variable number of feeds.
         """
-        message = "\n".join(
-            messagesgeneration.generate_html_feed_summery(feed) for feed in feeds
-        )
+        # message = ""
+        # message = "\n".join(
+        #     messagesgeneration.generate_html_feed_summery(feed) for feed in feeds
+        # )
+        with futures.ThreadPoolExecutor(max_workers=5) as executor:
+            threaded_tasks = [
+                executor.submit(messagesgeneration.generate_html_feed_summery, feed)
+                for feed in feeds
+            ]
+            message = "\n".join(
+                completed_task.result()
+                for completed_task in futures.as_completed(threaded_tasks)
+            )
         with yagmail.SMTP(config.EMAIL_SENDER_ADDRESS) as yag:
             yag.send(
                 to=self.address,
