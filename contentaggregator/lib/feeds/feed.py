@@ -4,12 +4,11 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import contextlib
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Any
 import time, datetime
 from enum import Enum
 import json
 
-import pynecone as pc
 import feedparser
 from bs4 import BeautifulSoup
 
@@ -63,6 +62,7 @@ class Feed(ABC):
         self._website: str | bool | None = None
         self._description: str | bool | None = None
         self._items_size: int | None = None
+        self._cached_info: List[Tuple[Any, ...]] | None = None
 
     def __repr__(self):
         return f"Feed(id={self._id})"
@@ -82,6 +82,16 @@ class Feed(ABC):
     def __hash__(self) -> int:
         return hash(self._id)
 
+    def _cache_database_info(self) -> None:
+        """Store all information of this feed, once one of its properties is required [ןf it is stored in the database].
+        results in saving database queries.
+        """
+        self._cached_info = databaseapi.select(
+            table=config.DATABASE_TABLES_NAMES.feeds_table,
+            condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
+            desired_rows_num=1,
+        )
+
     @property
     def id(self) -> int:
         """Property getter for feed id in the feeds table.
@@ -99,12 +109,9 @@ class Feed(ABC):
             str: Feed url
         """
         if self._url is None:
-            self._url = databaseapi.select(
-                cols=config.FEEDS_DATA_COLUMNS.link,
-                table=config.DATABASE_TABLES_NAMES.feeds_table,
-                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0][0]
+            if not self._cached_info:
+                self._cache_database_info()
+            self._url = self._cached_info[0][1]
         return self._url
 
     @url.setter
@@ -128,21 +135,20 @@ class Feed(ABC):
         )
 
     @property
-    def rating(self) -> float:
+    def rating(self) -> bool | float:
         """rating property getter.
 
         Returns:
-            float: The rating of this feed.
+            bool | float: False if feed rating has not yet been set, feed Rating otherwise.
         """
         if self._rating is None:
-            rating = databaseapi.select(
-                cols=config.FEEDS_DATA_COLUMNS.rating,
-                table=config.DATABASE_TABLES_NAMES.feeds_table,
-                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0][0]
-            self._rating = FeedRatingResetManager(rating)
-        return self._rating.rating
+            if not self._cached_info:
+                self._cache_database_info()
+            if rating := self._cached_info[0][2]:
+                self._rating = FeedRatingResetManager(rating)
+            else:
+                self._rating = False
+        return self._rating.rating if self._rating else self._rating
 
     def _set_final_rating(self, rating_amount: float) -> float:
         """set the final rating of the feed,
@@ -189,11 +195,9 @@ class Feed(ABC):
             int: The size of the items.
         """
         if self._items_size is None:
-            self._items_size = databaseapi.select(
-                cols=config.FEEDS_DATA_COLUMNS.items_size,
-                table=config.DATABASE_TABLES_NAMES.feeds_table,
-                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
-            )[0][0]
+            if not self._cached_info:
+                self._cache_database_info()
+            self._items_size = self._cached_info[0][5]
         return self._items_size
 
     @items_size.setter
@@ -229,24 +233,24 @@ class Feed(ABC):
         )
 
     @property
-    def categories(self) -> Set[FeedCategories] | None:
+    def categories(self) -> bool | Set[FeedCategories]:
         """Getter property, for categories of this feed.
         Each feed can contains a lot of categories, like: news, technology,
         blogs and so on.
 
         Returns:
-            Set[FeedCategories] | None: A Set of categories if was defined, None otherwise.
+            bool | Set[FeedCategories]: False if feed categories has not yet been defined, Set of categories otherwise.
         """
         if self._categories is None:
-            if db_response := databaseapi.select(
-                cols=config.FEEDS_DATA_COLUMNS.categories,
-                table=config.DATABASE_TABLES_NAMES.feeds_table,
-                condition_expr=f"{config.FEEDS_DATA_COLUMNS.id} = {self._id}",
-            ):
-                categories = json.loads(db_response[0][0])
+            if not self._cached_info:
+                self._cache_database_info()
+            if json_format_categories := self._cached_info[0][4]:
+                categories = json.loads(json_format_categories)
                 self._categories = set(
                     FeedCategories._value2member_map_[key] for key in categories
                 )
+            else:
+                self._categories = False
         return self._categories
 
     @categories.setter

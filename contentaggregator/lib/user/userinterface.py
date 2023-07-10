@@ -4,6 +4,7 @@
 from __future__ import annotations
 import datetime
 import json
+from typing import List, Tuple, Any
 
 from contentaggregator.lib.sqlmanagement import databaseapi
 from contentaggregator.lib.feeds.feed import FeedFactory
@@ -20,7 +21,6 @@ from contentaggregator.lib.user.userproperties.collections import (
     UserDictController,
     UserSetController,
 )
-from contentaggregator.lib.exceptions import UserNotFound
 
 
 class User:
@@ -33,6 +33,7 @@ class User:
         self._username: str | None = None
         self._password: bytes | None = None
         self._sending_time: Time | bool | None = None
+        self._cached_info: List[Tuple[Any, ...]] | None = None
 
     def __repr__(self):
         return f"User(id={self.id})"
@@ -57,6 +58,16 @@ class User:
             and self.sending_time == other.sending_time
         )
 
+    def _cache_database_info(self) -> None:
+        """Store all information of this user, once one of its properties is required.
+        results in saving database queries.
+        """
+        self._cached_info = databaseapi.select(
+            table=config.DATABASE_TABLES_NAMES.users_table,
+            condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
+            desired_rows_num=1,
+        )
+
     @property
     def id(self) -> int:
         """Property getter for user id in the users table.
@@ -77,15 +88,12 @@ class User:
             False otherwise.
         """
         if self._feeds is None:
-            if db_response := databaseapi.select(
-                cols=config.USERS_DATA_COLUMNS.subscriptions,
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0][0]:
-                # TODO for feed factory, we need send also the type of the feed. maybe by join query above,
-                # that will be collect information from feeds table also. (or if it will be better to know this by url it self)
-                data = (FeedFactory.create(feed) for feed in json.loads(db_response))
+            # TODO for feed factory, we need send also the type of the feed. maybe by join query above,
+            # that will be collect information from feeds table also. (or if it will be better to know this by url it self)
+            if not self._cached_info:
+                self._cache_database_info()
+            if feeds_info := self._cached_info[0][6]:
+                data = (FeedFactory.create(feed) for feed in json.loads(feeds_info))
                 self._feeds = UserSetController(*data)
             else:
                 self._feeds = False
@@ -142,16 +150,13 @@ class User:
             False otherwise.
         """
         if self._addresses is None:
-            if db_response := databaseapi.select(
-                cols=config.USERS_DATA_COLUMNS.addresses,
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0][0]:
-                response_info = json.loads(db_response)
+            if not self._cached_info:
+                self._cache_database_info()
+            if json_format_addresses := self._cached_info[0][7]:
+                addresses_info = json.loads(json_format_addresses)
                 data = {
                     key: address.AddressFactory.create(key, value)
-                    for key, value in response_info.items()
+                    for key, value in addresses_info.items()
                 }
                 self._addresses = UserDictController(**data)
             else:
@@ -216,12 +221,9 @@ class User:
             str: The name of this user.
         """
         if not self._username:
-            self._username = databaseapi.select(
-                cols=config.USERS_DATA_COLUMNS.username,
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self.id}",
-                desired_rows_num=1,
-            )[0][0]
+            if not self._cached_info:
+                self._cache_database_info()
+            self._username = self._cached_info[0][1]
         return self._username
 
     @username.setter
@@ -260,14 +262,9 @@ class User:
             bytes: The hashed password of this user.
         """
         if not self._password:
-            self._password = bytes(
-                databaseapi.select(
-                    cols=config.USERS_DATA_COLUMNS.password,
-                    table=config.DATABASE_TABLES_NAMES.users_table,
-                    condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                    desired_rows_num=1,
-                )[0][0]
-            )
+            if not self._cached_info:
+                self._cache_database_info()
+            self._password = bytes(self._cached_info[0][2])
         return self._password
 
     @password.setter
@@ -304,34 +301,24 @@ class User:
         self._password = hashed_pwd
 
     @property
-    def sending_time(self) -> Time:
+    def sending_time(self) -> bool | Time:
         """sending_time property getter.
         Gets the Time object of this user.
 
         Returns:
-            Time: The Time object of this user (including it's sending time and sending schedule).
+            bool | Time: False if has no time settings yet, Time object of this user otherwise.
         """
         if not self._sending_time:
-            db_response = databaseapi.select(
-                cols=(
-                    config.USERS_DATA_COLUMNS.sending_time,
-                    config.USERS_DATA_COLUMNS.sending_schedule,
-                ),
-                table=config.DATABASE_TABLES_NAMES.users_table,
-                condition_expr=f"{config.USERS_DATA_COLUMNS.id} = {self._id}",
-                desired_rows_num=1,
-            )[0]
-
-            if all(db_response):
+            if not self._cached_info:
+                self._cache_database_info()
+            timing_info = self._cached_info[0][4:6][::-1]
+            if all(timing_info):
                 self._sending_time = Time(
-                    datetime.datetime.strptime(db_response[0], "%H:%M").time(),
-                    Timing._value2member_map_[db_response[1]],
+                    datetime.datetime.strptime(timing_info[0], "%H:%M").time(),
+                    Timing._value2member_map_[timing_info[1]],
                 )
             else:
-                raise AttributeError(
-                    """Could not find any timing settings.
-                    You must define sending preferences"""
-                )
+                self._sending_time = False
         return self._sending_time
 
     @sending_time.setter
